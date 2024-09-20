@@ -1,0 +1,26 @@
+{
+  "name": "guild-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./dist/index.js",
+    "test": "npm run build && npm run start",
+    "registerCommands": "npm run build && node ./dist/register-commands.js",
+    "com": "npm run registerCommands"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "discord.js": "^14.16.1",
+    "dotenv": "^16.4.5",
+    "guild-bot": "file:",
+    "i": "^0.3.7",
+    "npm": "^10.8.3",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

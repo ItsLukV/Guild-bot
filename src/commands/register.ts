@@ -15,27 +15,40 @@ module.exports = {
             .setRequired(true)
             .setDescription('Your minecraft username')),
     async execute(interaction: ChatInputCommandInteraction<CacheType>) {
-        let userName = interaction.options.get("ign",true).value as string
-        let embed = new EmbedBuilder().setColor(0x00ff00);
-        let hypixelDiscordUsername = await checkMCUsername(userName);
-        if(hypixelDiscordUsername === null) {
-            embed.setDescription("Please add your discord username on hypixel");
-        } else if (Bot.guildMembers.has(interaction.user.id)) {
+        const userName = interaction.options.getString("ign", true);
+        const embed = new EmbedBuilder()
+
+        // Check if Minecraft username is linked to a Discord username
+        const hypixelDiscordUsername = await checkMCUsername(userName);
+
+        if (!hypixelDiscordUsername) {
+            embed.setDescription("Please add your Discord username on Hypixel.");
+            embed.setColor(0xff0000);
+        } else if (Bot.hasGuildMember(interaction.user.id)) {
             embed.setDescription("You are already registered!");
+            embed.setColor(0xff0000);
         } else if (hypixelDiscordUsername === interaction.user.username) {
-            Bot.guildMembers.set(
+            const mcUUID = await getMCUUID(userName);
+
+            Bot.addGuildMember(
                 interaction.user.id,
                 new GuildUser(
                     interaction.user.id,
                     interaction.user.username,
-                    (await getMCUUID(userName)).id
+                    mcUUID.id,
+                    userName
                 )
             );
-            console.log("Registered: " + interaction.user.username);
+
+            console.log(`Registered: ${interaction.user.username}`);
+            embed.setColor(0x00ff00);
             embed.setDescription("You are now registered!");
         } else {
-            embed.setDescription("Tour discord username does not match the one on hypixel");
+            embed.setColor(0xff0000);
+            embed.setDescription("Your Discord username does not match the one on Hypixel.");
         }
-        interaction.reply({ embeds: [embed] });
-	},
+
+        await interaction.reply({ embeds: [embed] });
+    }
+
 } as Command;

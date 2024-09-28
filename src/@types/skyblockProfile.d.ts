@@ -5,41 +5,40 @@ export interface Skyblock {
 
 interface Profile {
     profile_id: string,
-    community_upgrades: any,
+    community_upgrades: unknown ,
     members: Record<string, PlayerData>
     selected: boolean
 }
 
 interface PlayerData {
     rift: Rift,
-    player_data: PlayerData,
-    glacite_player_data: any,
-    events: any
-    garden_player_data: any
-    accessory_bag_storage: any
-    leveling: any
-    item_data: any
-    jacobs_contest: any
-    currencies: any
-    dungeons: any
-    profile: any
-    pets_data: any
+    glacite_player_data: unknown ,
+    events: unknown
+    garden_player_data: unknown
+    accessory_bag_storage: unknown
+    leveling: unknown
+    item_data: unknown
+    jacobs_contest: unknown
+    currencies: unknown
+    dungeons: unknown
+    profile: unknown
+    pets_data: unknown
     player_id: string
-    nether_island_player_data: any
-    experimentation: any
-    mining_core: any
-    bestiary: any
-    quests: any
-    player_stats: any
-    winter_player_data: any
-    forge: any
-    fairy_soul: any
+    nether_island_player_data: unknown
+    experimentation: unknown
+    mining_core: unknown
+    bestiary: unknown
+    quests: unknown
+    player_stats: unknown
+    winter_player_data: unknown
+    forge: unknown
+    fairy_soul: unknown
     slayer: Slayer
-    trophy_fish: any
-    objectives: any
-    inventory: any
-    shared_inventory: any
-    collection: any
+    trophy_fish: unknown
+    objectives: unknown
+    inventory: unknown
+    shared_inventory: unknown
+    collection: unknown
 }
 
 interface Slayer {
@@ -73,7 +72,8 @@ interface SlayerBoss {
         level_8_special?: boolean
         level_9_special?: boolean
     },
-    boss_kills_tier_0: number,
+    boss_attempts_tier_0?: number,
+    boss_kills_tier_0?: number,
     xp?: number,
     boss_attempts_tier_1?: number,
     boss_kills_tier_1?: number,

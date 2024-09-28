@@ -2,9 +2,12 @@ import { Client, ClientOptions, Collection, Events } from 'discord.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Command } from './@types/commands';
+import { Pool } from 'pg';
 
 export class Discord extends Client {
     public commands: Collection<string, Command>;
+
+
 
     constructor(options: ClientOptions) {
         super(options)

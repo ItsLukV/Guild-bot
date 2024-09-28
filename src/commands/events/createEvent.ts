@@ -2,6 +2,7 @@ import { CacheType, ChatInputCommandInteraction, EmbedBuilder, Guild, SlashComma
 import { Command } from "../../@types/commands";
 import { Bot } from "../../Bot";
 import { GuildEvent, GuildEventType } from "../../utils/GuildEvent";
+import { GuildUser } from "../../utils/GuildUser";
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,7 +14,7 @@ module.exports = {
             .setRequired(true)
             .addChoices(
         { name: 'slayer', value: 'event_slayer' },
-                    { name: 'meow', value: 'event_meow' },
+                    // { name: 'meow', value: 'event_meow' },
             ))
     .addIntegerOption(option =>
         option.setName('duration')
@@ -22,11 +23,28 @@ module.exports = {
     )
             ,
     async execute(interaction: ChatInputCommandInteraction<CacheType>) {
+        if(interaction.memberPermissions?.has("Administrator") === false) {
+            let embed = new EmbedBuilder()
+            .setColor(0xff0000 )
+            .setDescription("[ERROR] You dont have the right permissions")
+            interaction.reply({ embeds: [embed] });
+            interaction.reply({ embeds: [embed] });
+            return
+        }
         let event = new GuildEvent(
             interaction.options.getString('event-type', true) as GuildEventType,
             interaction.options.getInteger("duration",true)
         )
-        Bot.guildEvents.push(event)
+        let guildUser = Bot.getGuildMember(interaction.user.id)
+        if (!guildUser) {
+            let embed = new EmbedBuilder()
+            .setColor(0xff0000 )
+            .setDescription("[ERROR] Please register!")
+            interaction.reply({ embeds: [embed] });
+            return
+        }
+        await Bot.guildEventManager.createEvent(event)
+        await Bot.guildEventManager.addUser(event.getUUID(), guildUser);
         let eventStatus = event.active(interaction)
         let embed = new EmbedBuilder()
         .setColor(eventStatus ? 0x00ff00 : 0xff0000 )

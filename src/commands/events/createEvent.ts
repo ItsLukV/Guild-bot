@@ -1,4 +1,4 @@
-import { CacheType, ChatInputCommandInteraction, EmbedBuilder, Guild, SlashCommandBuilder } from "discord.js";
+import { CacheType, ChatInputCommandInteraction, EmbedBuilder, Guild, SlashCommandBuilder, TextChannel } from "discord.js";
 import { Command } from "../../@types/commands";
 import { Bot } from "../../Bot";
 import { GuildEvent, GuildEventType } from "../../utils/GuildEvent";
@@ -43,12 +43,32 @@ module.exports = {
             interaction.reply({ embeds: [embed] });
             return
         }
-        await Bot.guildEventManager.createEvent(event)
+        let embed = await Bot.guildEventManager.createEvent(event);
+
+        interaction.reply({ embeds: [embed] })
+
+        await Bot.guildEventManager.addUser(event.getUUID(), new GuildUser({
+            id: '300381646929133568',
+            discordname: 'emilzacho',
+            mcUsername: 'TTVEmilMZEU',
+            uuid: '5ef04c7a95ae4c9396cefe925e4d5833'
+        }));
+        await Bot.guildEventManager.addUser(event.getUUID(), new GuildUser({
+            id: '251350379650875394',
+            discordname: 'rabbsdk',
+            mcUsername: '22um',
+            uuid: 'af1da1dcf5b046b3b412cc3af47f0bd6'
+        }));
+        await Bot.guildEventManager.addUser(event.getUUID(), new GuildUser({
+            id: '428908206748729345',
+            discordname: 'stepjepp',
+            mcUsername: 'stepjeppe',
+            uuid: '4c19fd1577234187b2d8d0fcea61e31e'
+        }));
+
         await Bot.guildEventManager.addUser(event.getUUID(), guildUser);
-        let eventStatus = event.active(interaction)
-        let embed = new EmbedBuilder()
-        .setColor(eventStatus ? 0x00ff00 : 0xff0000 )
-        .setDescription(eventStatus ? "Event created" : "Failed to create event")
-        interaction.reply({ embeds: [embed] });
+
+        // TODO: Make this to a command
+        await event.active()
     }
 } as Command;

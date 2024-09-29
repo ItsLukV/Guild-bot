@@ -14,8 +14,8 @@ CREATE TABLE guild_event_type (
 CREATE TABLE guild_event (
     id TEXT PRIMARY KEY,
     event_type INT REFERENCES guild_event_type(id),
-    start_date TIMESTAMPTZ NOT NULL,
-    end_date TIMESTAMPTZ NOT NULL
+    start_date TIMESTAMPTZ,
+    end_date TIMESTAMPTZ
 );
 
 CREATE TABLE guild_event_entries (
@@ -51,3 +51,8 @@ CREATE TABLE guild_event_boss_stats (
     boss_stats_id INT REFERENCES boss_stats(id),
     user_id INT REFERENCES users(id)
 );
+
+DROP TABLE guild_event_boss_stats;
+DROP TABLE boss_stats;
+DROP TABLE guild_event_entries;
+DROP TABLE guild_event;

@@ -1,6 +1,7 @@
+import { Embed, EmbedBuilder } from "discord.js";
 import { Slayer } from "../@types/skyblockProfile";
 import { Bot } from "../Bot";
-import { GuildEvent } from "./GuildEvent";
+import { GuildEvent, prettieEventType } from "./GuildEvent";
 import { GuildUser } from "./GuildUser";
 import { getActiveProfile, getSkyblock } from "./hypixel-api";
 
@@ -11,34 +12,46 @@ export class GuildEventManager {
 
     private readonly guildEvents: Map<string, GuildEvent> = new Map();
 
-    async createEvent(event: GuildEvent) {
+    async createEvent(event: GuildEvent): Promise<EmbedBuilder> {
         this.guildEvents.set(event.getUUID(),event);
         const client = await Bot.pool.connect()
 
         const eventId = await client.query(`
-            INSERT INTO guild_event (id, event_type, start_date, end_date)
-            VALUES ($1, (SELECT id FROM guild_event_type WHERE name = $2), NOW(), NOW() + INTERVAL '${event.duration} seconds')
+            INSERT INTO guild_event (id, event_type)
+            VALUES ($1, (SELECT id FROM guild_event_type WHERE name = $2))
             RETURNING id;
         `, [event.getUUID(), event.eventType]);
+        return new EmbedBuilder()
+        .setTitle( "Successfully created a" + prettieEventType(event.eventType))
+        // .setDescription(`Ends in <t:${Math.round(new Date().getTime() / 1000) + event.duration}:R>`)
+        .addFields()
+        .setColor(0x00ff00)
     }
 
-    async addUser(eventId: string, user: GuildUser) {
+    async addUser(eventId: string, user: GuildUser): Promise<EmbedBuilder> {
         let event = this.guildEvents.get(eventId)
         if(!event) {
             throw new Error("Missing event")
         }
+        let embed
 
         switch(event.eventType) {
             case "event_slayer":
                 let playerData = await getActiveProfile(user.uuid)
                 let slayerData = playerData?.members[user.uuid]?.slayer;
-                if(slayerData) {
+                if(slayerData) { // TODO: make the message more nice
                     user.addSlayer(slayerData);
+                    embed = new EmbedBuilder().setTitle("success!")
+                } else {
+                    embed = new EmbedBuilder().setTitle("error please contact please a admin")
                 }
-        }
+                default:
+                    embed = new EmbedBuilder().setTitle("error please contact please a admin")
+            }
 
 
         event.addUser(user);
+        return embed;
     }
 
 
@@ -141,6 +154,33 @@ export class GuildEventManager {
         } finally {
             client.release()
         }
+    }
+
+    async activeEvent(eventId: string): Promise<EmbedBuilder> {
+        let event = this.guildEvents.get(eventId)
+        if(!event) {
+            return new EmbedBuilder()
+                .setTitle('Failed to start the event')
+                .setColor(0xff0000)
+        }
+
+        const client = await Bot.pool.connect()
+        try {
+            const _ = await client.query(`
+                UPDATE guild_events
+                SET start_date = NOW(), end_date = NOW() + INTERVAL '${event.duration} seconds
+                WHERE id = ${eventId};
+            `);
+        } finally {
+            client.release()
+        }
+
+        // Return immediately since setTimeout is non-blocking
+        return new EmbedBuilder()
+        .setTitle( "Successfully created a" + prettieEventType(event.eventType))
+        .setDescription(`Ends in <t:${Math.round(new Date().getTime() / 1000) + event.duration}:R>`)
+        .addFields()
+        .setColor(0x00ff00)
     }
 
     async loadEvent() {

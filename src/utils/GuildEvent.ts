@@ -39,14 +39,21 @@ export class GuildEvent {
         return this._uuid;
     }
 
-    public active(interaction: ChatInputCommandInteraction<CacheType>): boolean {
-        if (!interaction.member) {
-            interaction.reply({embeds: [new EmbedBuilder().setDescription("Error").setColor(0xff0000)]});
-            return false;
+    public async active() {
+        let embed = new EmbedBuilder().setTitle("Events started")
+        .setDescription(`Ends in <t:${Math.round(new Date().getTime() / 1000) + this.duration}:R>`)
+
+        let channel = Bot.discord.channels.cache.get(process.env.GUILD_DISCORD_CHANNEL as string);
+        // Check if the channel is a TextChannel
+        if (channel instanceof TextChannel) {
+            await channel.send({ embeds: [embed] });
+        } else {
+            console.error("The channel is not a text channel or does not exist.");
         }
+
         setTimeout(async () => {
             let embed = await prettieEndOfSlayerEventEmbed([...this.users.values()])
-            let channel = Bot.discord.channels.cache.get('1283422887482626153');
+            let channel = Bot.discord.channels.cache.get(process.env.GUILD_DISCORD_CHANNEL as string);
             // Check if the channel is a TextChannel
             if (channel instanceof TextChannel) {
                 await channel.send({ embeds: [embed] });
@@ -54,8 +61,14 @@ export class GuildEvent {
                 console.error("The channel is not a text channel or does not exist.");
             }
         }, this.duration * 1_000);
+    }
+}
 
-        // Return immediately since setTimeout is non-blocking
-        return true;
+export function prettieEventType(type: GuildEventType): string {
+    switch (type) {
+        case "event_slayer":
+            return "Slayer Event"
+        default:
+            return type
     }
 }

@@ -1,9 +1,9 @@
 import { Embed, EmbedBuilder } from "discord.js";
 import { Slayer } from "../@types/skyblockProfile";
 import { Bot } from "../Bot";
-import { GuildEvent, prettieEventType } from "./GuildEvent";
-import { GuildUser } from "./GuildUser";
-import { getActiveProfile, getSkyblock } from "./hypixel-api";
+import { GuildUser } from "../utils/GuildUser";
+import { getActiveProfile, getSkyblock } from "../utils/hypixel-api";
+import { GuildEvent } from "./GuildEvent";
 
 export type BossType = 'zombie' | 'spider' | 'wolf' | 'enderman' | 'blaze' | 'vampire';
 
@@ -20,37 +20,33 @@ export class GuildEventManager {
             INSERT INTO guild_event (id, event_type)
             VALUES ($1, (SELECT id FROM guild_event_type WHERE name = $2))
             RETURNING id;
-        `, [event.getUUID(), event.eventType]);
+        `, [event.getUUID(), event.getType()]);
         return new EmbedBuilder()
-        .setTitle( "Successfully created a" + prettieEventType(event.eventType))
+        .setTitle( "Successfully created a " + event)
         // .setDescription(`Ends in <t:${Math.round(new Date().getTime() / 1000) + event.duration}:R>`)
         .addFields()
         .setColor(0x00ff00)
     }
 
     async addUser(eventId: string, user: GuildUser): Promise<EmbedBuilder> {
-        let event = this.guildEvents.get(eventId)
-        if(!event) {
-            throw new Error("Missing event")
-        }
-        let embed
-
-        switch(event.eventType) {
-            case "event_slayer":
-                let playerData = await getActiveProfile(user.uuid)
-                let slayerData = playerData?.members[user.uuid]?.slayer;
-                if(slayerData) { // TODO: make the message more nice
-                    user.addSlayer(slayerData);
-                    embed = new EmbedBuilder().setTitle("success!")
-                } else {
-                    embed = new EmbedBuilder().setTitle("error please contact please a admin")
-                }
-                default:
-                    embed = new EmbedBuilder().setTitle("error please contact please a admin")
+        let embed;
+        try {
+            let event = this.guildEvents.get(eventId)
+            if(!event) {
+                throw new Error("Missing event")
             }
-
-
-        event.addUser(user);
+            let playerData = await getActiveProfile(user.uuid)
+            let slayerData = playerData?.members[user.uuid]?.slayer;
+            if(slayerData) {
+                embed = new EmbedBuilder().setTitle("success!")
+            } else {
+                throw new Error("No slayer data")
+            }
+            event.addUser(user);
+        } catch (e) {
+            console.error(e)
+            embed = new EmbedBuilder().setTitle("error please contact please a admin")
+        }
         return embed;
     }
 
@@ -177,7 +173,7 @@ export class GuildEventManager {
 
         // Return immediately since setTimeout is non-blocking
         return new EmbedBuilder()
-        .setTitle( "Successfully created a" + prettieEventType(event.eventType))
+        .setTitle( "Successfully created a" + event)
         .setDescription(`Ends in <t:${Math.round(new Date().getTime() / 1000) + event.duration}:R>`)
         .addFields()
         .setColor(0x00ff00)
@@ -208,25 +204,25 @@ export class GuildEventManager {
         const client = await Bot.pool.connect()
         try {
             const res = await client.query(query)
-            for (let row of res.rows) {
-                if (!this.guildEvents.has(row.event_id)) {
-                    this.guildEvents.set(
-                        row.event_id,
-                        new GuildEvent(
-                            row.event_type,
-                            row.duration
-                        )
-                    )
-                }
+            console.log(res)
+            // for (let row of res.rows) {
+            //     if (!this.guildEvents.has(row.event_id)) {
+            //         this.guildEvents.set(
+            //             row.event_id,
+            //             new GuildEvent(
+            //                 row.duration
+            //             )
+            //         )
+            //     }
 
-                this.guildEvents.get(row.event_id)!
-                    .addUser(new GuildUser({
-                        id: row.user_id,
-                        discordname: row.discord_username,
-                        uuid: row.minecraft_uuid,
-                        mcUsername: row.minecraft_username
-                    }))
-            }
+            //     this.guildEvents.get(row.event_id)!
+            //         .addUser(new GuildUser({
+            //             id: row.user_id,
+            //             discordname: row.discord_username,
+            //             uuid: row.minecraft_uuid,
+            //             mcUsername: row.minecraft_username
+            //         }))
+            // }
         } finally {
             client.release()
         }

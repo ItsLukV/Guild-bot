@@ -1,11 +1,11 @@
 import { GatewayIntentBits, Guild, IntentsBitField, Partials, Snowflake } from "discord.js";
 import { GuildUser } from "./utils/GuildUser";
 import { Discord } from "./Discord";
-import { GuildEvent } from "./utils/GuildEvent";
+import { GuildEvent } from "./events/GuildEvent";
 require('dotenv').config()
 import { Pool } from "pg";
 import { todo } from "./utils/todo";
-import { GuildEventManager } from "./utils/GuildEventManager";
+import { GuildEventManager } from "./events/GuildEventManager";
 
 
 

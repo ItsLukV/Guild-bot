@@ -1,8 +1,9 @@
 import { CacheType, ChatInputCommandInteraction, EmbedBuilder, Guild, SlashCommandBuilder, TextChannel } from "discord.js";
 import { Command } from "../../@types/commands";
 import { Bot } from "../../Bot";
-import { GuildEvent, GuildEventType } from "../../utils/GuildEvent";
+import { GuildEvent, GuildEventType } from "../../events/GuildEvent";
 import { GuildUser } from "../../utils/GuildUser";
+import { SlayerGuildEvent } from "../../events/SlayerGuildEvent";
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -31,10 +32,17 @@ module.exports = {
             interaction.reply({ embeds: [embed] });
             return
         }
-        let event = new GuildEvent(
-            interaction.options.getString('event-type', true) as GuildEventType,
-            interaction.options.getInteger("duration",true)
-        )
+        let eventType = interaction.options.getString('event-type', true) as GuildEventType
+        let event: GuildEvent;
+        switch (eventType) {
+            case "event_slayer":
+                event = new SlayerGuildEvent(
+                    interaction.options.getInteger("duration",true)
+                )
+                break;
+            default:
+                throw new Error("missing event types")
+        }
         let guildUser = Bot.getGuildMember(interaction.user.id)
         if (!guildUser) {
             let embed = new EmbedBuilder()

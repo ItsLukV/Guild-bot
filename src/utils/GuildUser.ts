@@ -1,7 +1,6 @@
 import { Snowflake } from "discord.js";
 import { UUID } from "./hypixel-api";
 import { PlayerData, Slayer, SlayerBoss } from "../@types/skyblockProfile";
-import { GuildEventType } from "./GuildEvent";
 
 export class GuildUser {
 

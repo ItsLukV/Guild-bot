@@ -22,7 +22,7 @@ module.exports = {
             .setDescription('Event duration in hours')
             .setRequired(true)
     )
-            ,
+    ,
     async execute(interaction: ChatInputCommandInteraction<CacheType>) {
         if(interaction.memberPermissions?.has("Administrator") === false) {
             let embed = new EmbedBuilder()
@@ -55,6 +55,8 @@ module.exports = {
 
         interaction.reply({ embeds: [embed] })
 
+
+        // TODO: REMOVE THIS
         await Bot.guildEventManager.addUser(event.getUUID(), new GuildUser({
             id: '300381646929133568',
             discordname: 'emilzacho',
@@ -77,6 +79,6 @@ module.exports = {
         await Bot.guildEventManager.addUser(event.getUUID(), guildUser);
 
         // TODO: Make this to a command
-        await event.active()
+        await event.activate()
     }
 } as Command;

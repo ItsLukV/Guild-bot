@@ -3,6 +3,10 @@ import { Bot } from '../Bot';
 import { prettieEndOfSlayerEventEmbed } from '../utils/utilsFunction';
 import { GuildEvent, GuildEventType } from './GuildEvent';
 import { GuildUser } from '../utils/GuildUser';
+import { Slayer } from '../@types/skyblockProfile';
+import { todo } from '../utils/todo';
+
+export type BossType = 'zombie' | 'spider' | 'wolf' | 'enderman' | 'blaze' | 'vampire';
 
 
 export class SlayerGuildEvent extends GuildEvent {
@@ -21,7 +25,7 @@ export class SlayerGuildEvent extends GuildEvent {
 
 
 
-    public async active() {
+    public async activate() {
         let embed = new EmbedBuilder().setTitle("Events started")
         .setDescription(`Ends in <t:${Math.round(new Date().getTime() / 1000) + this.duration}:R>`)
 
@@ -43,5 +47,9 @@ export class SlayerGuildEvent extends GuildEvent {
                 console.error("The channel is not a text channel or does not exist.");
             }
         }, this.duration * 1_000);
+    }
+
+    public async loadPlayer(player: GuildUser) {
+        todo()
     }
 }

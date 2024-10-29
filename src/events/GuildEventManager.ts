@@ -4,8 +4,8 @@ import { Bot } from "../Bot";
 import { GuildUser } from "../utils/GuildUser";
 import { getActiveProfile, getSkyblock } from "../utils/hypixel-api";
 import { GuildEvent } from "./GuildEvent";
+import { todo } from "../utils/todo";
 
-export type BossType = 'zombie' | 'spider' | 'wolf' | 'enderman' | 'blaze' | 'vampire';
 
 
 export class GuildEventManager {
@@ -53,103 +53,11 @@ export class GuildEventManager {
 
     async load() {
         await this.loadEvent();
-        await this.loadPlayerData();
+        // await this.loadPlayerData();
     }
 
     async loadPlayerData() {
-        let query = `
-            SELECT
-                gebs.guild_event_id,
-                u.id AS user_id,
-                bt.name AS boss_type,
-                bs.xp,
-                bs.tier_0_kills,
-                bs.tier_1_kills,
-                bs.tier_2_kills,
-                bs.tier_3_kills,
-                bs.tier_4_kills,
-                bs.tier_0_attempts,
-                bs.tier_1_attempts,
-                bs.tier_2_attempts,
-                bs.tier_3_attempts,
-                bs.tier_4_attempts
-            FROM
-                guild_event_boss_stats gebs
-            JOIN
-                users u ON gebs.user_id = u.id
-            JOIN
-                boss_stats bs ON gebs.boss_stats_id = bs.id
-            JOIN
-                boss_types bt ON bs.boss_type_id = bt.id
-            ORDER BY guild_event_id, user_id;
-        `
-        const client = await Bot.pool.connect()
-        try {
-            const res = await client.query(query)
-            let data: Slayer = {
-                slayer_quest: {
-                    type: "",
-                    tier: 0,
-                    start_timestamp: 0,
-                    completion_state: 0,
-                    used_amour: false,
-                    solo: false
-                },
-                slayer_bosses: {
-                    zombie: {claimed_levels: {}},
-                    spider: {claimed_levels: {}},
-                    wolf: {claimed_levels: {}},
-                    enderman: {claimed_levels: {}},
-                    blaze: {claimed_levels: {}},
-                    vampire: {claimed_levels: {}}
-                }
-            };
-            let user;
-            for (let row of res.rows) {
-                let event = this.guildEvents.get(row.guild_event_id);
-                if (!event) {
-                    throw new Error("Missing guild event")
-                }
-
-                if (!user) {
-                    user = event.getUser(row.user_id)
-                }
-
-                if (!user) {
-                    throw new Error("Missing user")
-                }
-
-                const bossTypeKey = row.boss_type as BossType;
-
-                if (!(bossTypeKey in data.slayer_bosses)) {
-                    throw new Error(`Unknown boss type: ${row.boss_type}`);
-                }
-
-                const bossData = data.slayer_bosses[bossTypeKey];
-
-                bossData.boss_kills_tier_0 = row.tier_0_kills || 0;
-                bossData.boss_kills_tier_1 = row.tier_1_kills || 0;
-                bossData.boss_kills_tier_2 = row.tier_2_kills || 0;
-                bossData.boss_kills_tier_3 = row.tier_3_kills || 0;
-                bossData.boss_kills_tier_4 = row.tier_4_kills || 0;
-
-                bossData.boss_attempts_tier_0 = row.tier_0_attempts || 0;
-                bossData.boss_attempts_tier_1 = row.tier_1_attempts || 0;
-                bossData.boss_attempts_tier_2 = row.tier_2_attempts || 0;
-                bossData.boss_attempts_tier_3 = row.tier_3_attempts || 0;
-                bossData.boss_attempts_tier_4 = row.tier_4_attempts || 0;
-
-                bossData.xp = row.xp || 0;
-
-                if (row.user_id === user.id) {
-                    user.addSlayer(data);
-                } else {
-                    user = event.getUser(row.user_id)
-                }
-            }
-        } finally {
-            client.release()
-        }
+        todo()
     }
 
     async activeEvent(eventId: string): Promise<EmbedBuilder> {

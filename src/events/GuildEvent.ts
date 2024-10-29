@@ -18,8 +18,6 @@ export abstract class GuildEvent {
         this._uuid = uuidv4();
     }
 
-    public abstract active(): void;
-
     public getUser(id: string): GuildUser | undefined{
         return this.users.get(id)
     }
@@ -32,6 +30,8 @@ export abstract class GuildEvent {
         return this._uuid;
     }
 
+    public abstract activate(): void;
     public abstract getType(): GuildEventType;
     public abstract toString(): string;
+    public abstract loadPlayer(player: GuildUser): void
 }

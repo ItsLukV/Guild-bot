@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/ItsLukV/Guild-bot/src/commands"
+	"github.com/ItsLukV/Guild-bot/src/models"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -17,28 +19,7 @@ var (
 
 var s *discordgo.Session
 
-var (
-	commands = []*discordgo.ApplicationCommand{
-		{
-			Name: "basic-command",
-			// All commands and options must have a description
-			// Commands/options without description will fail the registration
-			// of the command.
-			Description: "Basic command",
-		},
-	}
-
-	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"basic-command": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Hey there! Congratulations, you just executed your first slash command",
-				},
-			})
-		},
-	}
-)
+var data models.GuildBot
 
 func init() { flag.Parse() }
 
@@ -52,8 +33,8 @@ func init() {
 
 func init() {
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-			h(s, i)
+		if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
+			h(&data, s, i)
 		}
 	})
 }
@@ -62,14 +43,15 @@ func main() {
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
+
 	err := s.Open()
 	if err != nil {
 		log.Fatalf("Cannot open the session: %v", err)
 	}
 
 	log.Println("Adding commands...")
-	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))
-	for i, v := range commands {
+	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands.Commands))
+	for i, v := range commands.Commands {
 		cmd, err := s.ApplicationCommandCreate(s.State.User.ID, GuildID, v)
 		if err != nil {
 			log.Panicf("Cannot create '%v' command: %v", v.Name, err)
@@ -86,14 +68,6 @@ func main() {
 
 	if *RemoveCommands {
 		log.Println("Removing commands...")
-		// // We need to fetch the commands, since deleting requires the command ID.
-		// // We are doing this from the returned commands on line 375, because using
-		// // this will delete all the commands, which might not be desirable, so we
-		// // are deleting only the commands that we added.
-		// registeredCommands, err := s.ApplicationCommands(s.State.User.ID, *GuildID)
-		// if err != nil {
-		// 	log.Fatalf("Could not fetch registered commands: %v", err)
-		// }
 
 		for _, v := range registeredCommands {
 			err := s.ApplicationCommandDelete(s.State.User.ID, GuildID, v.ID)
@@ -104,55 +78,4 @@ func main() {
 	}
 
 	log.Println("Gracefully shutting down.")
-}
-
-// func main() {
-
-//
-// 	if discord_token == "" {
-// 		log.Fatal("Failed to get DISCORD_TOKEN")
-// 	}
-
-// 	dg, err := discordgo.New("Bot " + discord_token)
-// 	if err != nil {
-// 		log.Fatalf("Error creating Discord session: %v", err)
-// 	}
-
-// 	// Register the messageCreate func as a callback for MessageCreate events.
-// 	dg.AddHandler(messageCreate)
-
-// 	// In this example, we only care about receiving message events.
-// 	// dg.Identify.Intents = discordgo.IntentsGuildMessages
-// 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent
-
-// 	// Open a websocket connection to Discord and begin listening.
-// 	err = dg.Open()
-// 	if err != nil {
-// 		fmt.Println("error opening connection,", err)
-// 		return
-// 	}
-
-// 	// Wait here until CTRL-C or other term signal is received.
-// 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
-// 	sc := make(chan os.Signal, 1)
-// 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-// 	<-sc
-
-// 	// Cleanly close down the Discord session.
-// 	dg.Close()
-// }
-
-// func ready(s *discordgo.Session, event *discordgo.Ready) {
-// 	fmt.Println("Bot is ready!")
-// }
-
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Ignore all messages created by the bot itself
-	// This isn't required in this specific example but it's a good practice.
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-	if m.ChannelID == "1283422887482626153" {
-		s.MessageReactionAdd(m.ChannelID, m.ID, "🔥")
-	}
 }

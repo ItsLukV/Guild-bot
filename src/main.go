@@ -2,13 +2,12 @@ package main
 
 import (
 	"flag"
+	"github.com/ItsLukV/Guild-bot/src/commands"
+	"github.com/ItsLukV/Guild-bot/src/db"
+	"github.com/bwmarrin/discordgo"
 	"log"
 	"os"
 	"os/signal"
-
-	"github.com/ItsLukV/Guild-bot/src/commands"
-	"github.com/ItsLukV/Guild-bot/src/models"
-	"github.com/bwmarrin/discordgo"
 )
 
 var (
@@ -19,7 +18,15 @@ var (
 
 var s *discordgo.Session
 
-var data models.GuildBot
+var data db.GuildBot
+
+func init() {
+	var err error
+	data, err = db.LoadGuildBot()
+	if err != nil {
+		log.Panicln("Failed to load guildBot from the Database")
+	}
+}
 
 func init() { flag.Parse() }
 
@@ -77,5 +84,6 @@ func main() {
 		}
 	}
 
+	db.GetInstance().Close()
 	log.Println("Gracefully shutting down.")
 }

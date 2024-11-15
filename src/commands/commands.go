@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"github.com/ItsLukV/Guild-bot/src/models"
+	"github.com/ItsLukV/Guild-bot/src/db"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -24,7 +24,7 @@ var (
 		},
 	}
 
-	CommandHandlers = map[string]func(g *models.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate){
+	CommandHandlers = map[string]func(g *db.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate){
 		"register": registerAccount,
 	}
 )

@@ -1,4 +1,4 @@
 src
 node_modules
 npm-debug.log
-sql
+src/db/migration

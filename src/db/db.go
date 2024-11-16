@@ -3,12 +3,15 @@ package db
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	guildData "github.com/ItsLukV/Guild-bot/src/GuildData"
+	"github.com/ItsLukV/Guild-bot/src/guildEvent"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // -----------------------------------------------
@@ -76,14 +79,14 @@ func (d *Database) Close() {
 	d.pool.Close()
 }
 
-func (d *Database) Save(bot GuildBot) {
+func (d *Database) Save(bot guildData.GuildBot) {
 	err := d.saveUsers(bot.Users)
 	if err != nil {
 		return
 	}
 }
 
-func (d *Database) AddUser(user GuildUser) error {
+func (d *Database) AddUser(user guildData.GuildUser) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Set a timeout
 	defer cancel()                                                          // Ensure the context is cancelled
 
@@ -108,7 +111,7 @@ func (d *Database) AddUser(user GuildUser) error {
 	return nil
 }
 
-func (d *Database) saveUsers(users map[string]GuildUser) error {
+func (d *Database) saveUsers(users map[string]guildData.GuildUser) error {
 	if len(users) == 0 {
 		log.Println("No users to insert")
 		return nil
@@ -177,7 +180,7 @@ func (d *Database) saveUsers(users map[string]GuildUser) error {
 	return nil
 }
 
-func (d *Database) fetchUsers() (map[string]GuildUser, error) {
+func (d *Database) fetchUsers() (map[string]guildData.GuildUser, error) {
 	// Create a context for the query
 	ctx := context.Background()
 
@@ -195,11 +198,11 @@ func (d *Database) fetchUsers() (map[string]GuildUser, error) {
 	defer rows.Close()
 
 	// Create a map to store the results
-	users := make(map[string]GuildUser)
+	users := make(map[string]guildData.GuildUser)
 
 	// Iterate through the rows and populate the map
 	for rows.Next() {
-		var user GuildUser
+		var user guildData.GuildUser
 		var snowflake string
 
 		// Scan the row into the GuildUser struct and snowflake
@@ -220,12 +223,13 @@ func (d *Database) fetchUsers() (map[string]GuildUser, error) {
 	return users, nil
 }
 
-func LoadGuildBot() (GuildBot, error) {
+func LoadGuildBot() (guildData.GuildBot, error) {
 	users, err := GetInstance().fetchUsers()
 	if err != nil {
-		return GuildBot{}, fmt.Errorf("failed to fetch users: %w", err)
+		return guildData.GuildBot{}, fmt.Errorf("failed to fetch users: %w", err)
 	}
-	return GuildBot{
-		Users: users,
+	return guildData.GuildBot{
+		Users:  users,
+		Events: make(map[int]guildEvent.Event),
 	}, nil
 }

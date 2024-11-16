@@ -2,12 +2,14 @@ package main
 
 import (
 	"flag"
-	"github.com/ItsLukV/Guild-bot/src/commands"
-	"github.com/ItsLukV/Guild-bot/src/db"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"os"
 	"os/signal"
+
+	guildData "github.com/ItsLukV/Guild-bot/src/GuildData"
+	"github.com/ItsLukV/Guild-bot/src/commands"
+	"github.com/ItsLukV/Guild-bot/src/db"
+	"github.com/bwmarrin/discordgo"
 )
 
 var (
@@ -18,7 +20,7 @@ var (
 
 var s *discordgo.Session
 
-var data db.GuildBot
+var data guildData.GuildBot
 
 func init() {
 	var err error

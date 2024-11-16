@@ -3,91 +3,81 @@ package commands
 import (
 	"fmt"
 	"log"
-	"reflect"
 	"strings"
 
+	guildData "github.com/ItsLukV/Guild-bot/src/GuildData"
 	"github.com/ItsLukV/Guild-bot/src/db"
 	"github.com/ItsLukV/Guild-bot/src/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
-func registerAccount(g *db.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate) {
+func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	// Check if the user is already registered
 	if v, exists := g.Users[i.Member.User.ID]; exists {
-		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("You are already registered, with the MC IGN: %s", v.McUsername),
-			},
-		})
-		if err != nil {
-			log.Println("Error responding to interaction:", err)
-			return
-		}
-		log.Println("User already registered: ", i.Member.User.ID)
+		respondWithError(s, i, fmt.Sprintf("You are already registered with the Minecraft IGN: %s", v.McUsername))
+		log.Println("User already registered:", i.Member.User.ID)
 		return
 	}
 
-	// Access options in the order provided by the user.
-	// There is only one option, so we just set it as the userName
+	// Retrieve the Minecraft username from the command options
 	userName := i.ApplicationCommandData().Options[0].StringValue()
 
+	// Get the Minecraft UUID for the provided username
 	mcUuid, err := utils.GetMCUUID(userName)
 	if err != nil {
-		log.Println("Error getting the minecraft UUID: ", err)
+		log.Println("Error getting the Minecraft UUID:", err)
 		var out string
 		switch err.Error() {
 		case "error: Unable to fetch data. Status code: 400":
-			out = "Invalid minecraft account name (Not possible)"
+			out = "Invalid Minecraft account name (Not possible)"
 		case "error: Unable to fetch data. Status code: 404":
-			out = "Invalid minecraft account name (No exiting account with that name)"
+			out = "Invalid Minecraft account name (No existing account with that name)"
 		default:
 			out = "Unknown error, please contact staff"
 		}
 
-		fmt.Println(reflect.TypeOf(err))
-		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: out,
-			},
-		})
+		respondWithError(s, i, out)
 		return
 	}
 
-	dicordName, err := utils.CheckUserName(mcUuid.Id)
+	// Check the Discord username associated with the Minecraft UUID
+	discordName, err := utils.CheckUserName(mcUuid.Id)
 	if err != nil {
-		log.Println("Error fetching username: ", err)
+		log.Println("Error fetching username:", err)
+		respondWithError(s, i, "Failed to fetch username, please try again later.")
 		return
 	}
 
-	var out = "You are not registered to this account"
-	if &i.Member.User.Username != nil &&
-		strings.ToLower(*dicordName) == strings.ToLower(i.Member.User.Username) {
-		g.Users[i.Member.User.ID] = db.GuildUser{
+	// Verify that the Discord username matches
+	if discordName != nil && strings.EqualFold(*discordName, i.Member.User.Username) {
+		// Register the user
+		g.Users[i.Member.User.ID] = guildData.GuildUser{
 			Snowflake:       i.Member.User.ID,
 			McUUID:          mcUuid.Id,
 			McUsername:      mcUuid.Name,
 			DiscordUsername: i.Member.User.Username,
 		}
 		user := g.Users[i.Member.User.ID]
-		err := user.SaveUser()
+		err := db.GetInstance().AddUser(user)
 		if err != nil {
-			log.Println("Error saving user: ", err)
-			out = "Failed to save user (Please contact support)"
+			log.Println("Error saving user:", err)
+			respondWithError(s, i, "Failed to save user (Please contact support)")
+			return
 		} else {
-			out = "Registration complete"
+			// Registration successful, respond to the user
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Registration complete!",
+				},
+			})
+			if err != nil {
+				log.Println("Error responding to interaction:", err)
+			}
+			return
 		}
-	}
-
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: out,
-		},
-	})
-
-	if err != nil {
-		log.Println("Error responding to interaction:", err)
+	} else {
+		respondWithError(s, i, "You are not registered to this account")
 		return
 	}
 }

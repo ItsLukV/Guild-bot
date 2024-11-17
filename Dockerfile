@@ -1,11 +1,21 @@
-FROM node:alpine
+# Build Stage
 
-WORKDIR /usr/src/app
+FROM golang:1.23.1 AS BuildStage
 
-COPY package*.json ./
-
-RUN npm install
+WORKDIR /
 
 COPY . .
 
-CMD ["node", "./dist/index.js"]
+RUN go mod download
+
+RUN go build -o guild-bot ./src/main.go
+
+FROM alpine:latest
+
+WORKDIR /
+
+COPY --from=BuildStage /guild-bot /guild-bot
+
+USER nonroo:nonroot
+
+ENTRYPOINT [ "/guild-bot" ]

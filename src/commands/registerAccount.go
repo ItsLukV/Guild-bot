@@ -5,8 +5,8 @@ import (
 	"log"
 	"strings"
 
-	guildData "github.com/ItsLukV/Guild-bot/src/GuildData"
 	"github.com/ItsLukV/Guild-bot/src/db"
+	guildData "github.com/ItsLukV/Guild-bot/src/guildData"
 	"github.com/ItsLukV/Guild-bot/src/utils"
 	"github.com/bwmarrin/discordgo"
 )

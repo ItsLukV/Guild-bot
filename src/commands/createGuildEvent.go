@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	guildData "github.com/ItsLukV/Guild-bot/src/GuildData"
+	guildData "github.com/ItsLukV/Guild-bot/src/guildData"
 	"github.com/ItsLukV/Guild-bot/src/guildEvent"
 	"github.com/bwmarrin/discordgo"
 )

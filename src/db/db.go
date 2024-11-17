@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	guildData "github.com/ItsLukV/Guild-bot/src/GuildData"
+	"github.com/ItsLukV/Guild-bot/src/guildData"
 	"github.com/ItsLukV/Guild-bot/src/guildEvent"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

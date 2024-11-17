@@ -6,9 +6,9 @@ import (
 	"os"
 	"os/signal"
 
-	guildData "github.com/ItsLukV/Guild-bot/src/GuildData"
 	"github.com/ItsLukV/Guild-bot/src/commands"
 	"github.com/ItsLukV/Guild-bot/src/db"
+	guildData "github.com/ItsLukV/Guild-bot/src/guildData"
 	"github.com/bwmarrin/discordgo"
 )
 

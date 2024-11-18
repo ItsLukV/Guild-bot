@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	guildData "github.com/ItsLukV/Guild-bot/src/guildData"
+	"github.com/ItsLukV/Guild-bot/src/guildData"
+	"github.com/ItsLukV/Guild-bot/src/utils"
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -20,21 +22,21 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		if len(data.Options) > 0 && data.Options[0].Type == discordgo.ApplicationCommandOptionInteger {
 			eventID = int(data.Options[0].IntValue())
 		} else {
-			respondWithError(s, i, "Invalid or missing 'event-id' option.")
+			utils.RespondWithError(s, i, "Invalid or missing 'event-id' option.")
 			return
 		}
 
 		// Find the event in your bot's event map
 		event, exists := g.Events[eventID]
 		if !exists {
-			respondWithError(s, i, fmt.Sprintf("Event with ID %d not found.", eventID))
+			utils.RespondWithError(s, i, fmt.Sprintf("Event with ID %d not found.", eventID))
 			return
 		}
 
 		// Start the event
 		err := event.Start()
 		if err != nil {
-			respondWithError(s, i, fmt.Sprintf("Failed to start event: %v", err))
+			utils.RespondWithError(s, i, fmt.Sprintf("Failed to start event: %v", err))
 			return
 		}
 

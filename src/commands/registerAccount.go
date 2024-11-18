@@ -14,7 +14,7 @@ import (
 func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Check if the user is already registered
 	if v, exists := g.Users[i.Member.User.ID]; exists {
-		respondWithError(s, i, fmt.Sprintf("You are already registered with the Minecraft IGN: %s", v.McUsername))
+		utils.RespondWithError(s, i, fmt.Sprintf("You are already registered with the Minecraft IGN: %s", v.McUsername))
 		log.Println("User already registered:", i.Member.User.ID)
 		return
 	}
@@ -36,7 +36,7 @@ func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 			out = "Unknown error, please contact staff"
 		}
 
-		respondWithError(s, i, out)
+		utils.RespondWithError(s, i, out)
 		return
 	}
 
@@ -44,7 +44,7 @@ func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 	discordName, err := utils.CheckUserName(mcUuid.Id)
 	if err != nil {
 		log.Println("Error fetching username:", err)
-		respondWithError(s, i, "Failed to fetch username, please try again later.")
+		utils.RespondWithError(s, i, "Failed to fetch username, please try again later.")
 		return
 	}
 
@@ -61,7 +61,7 @@ func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		err := db.GetInstance().SaveUser(user)
 		if err != nil {
 			log.Println("Error saving user:", err)
-			respondWithError(s, i, "Failed to save user (Please contact support)")
+			utils.RespondWithError(s, i, "Failed to save user (Please contact support)")
 			return
 		} else {
 			// Registration successful, respond to the user
@@ -77,7 +77,7 @@ func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 			return
 		}
 	} else {
-		respondWithError(s, i, "You are not registered to this account")
+		utils.RespondWithError(s, i, "You are not registered to this account")
 		return
 	}
 }

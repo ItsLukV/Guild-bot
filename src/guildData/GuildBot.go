@@ -1,9 +1,5 @@
 package guildData
 
-import (
-	"github.com/ItsLukV/Guild-bot/src/guildEvent"
-)
-
 type GuildUser struct {
 	Snowflake       string
 	McUUID          string
@@ -13,5 +9,5 @@ type GuildUser struct {
 
 type GuildBot struct {
 	Users  map[string]GuildUser
-	Events map[int]guildEvent.Event
+	Events map[int]Event
 }

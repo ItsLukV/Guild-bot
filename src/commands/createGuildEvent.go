@@ -7,7 +7,7 @@ import (
 
 	"github.com/ItsLukV/Guild-bot/src/db"
 	guildData "github.com/ItsLukV/Guild-bot/src/guildData"
-	"github.com/ItsLukV/Guild-bot/src/guildEvent"
+	"github.com/ItsLukV/Guild-bot/src/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -16,7 +16,7 @@ func createGuildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.
 	options := i.ApplicationCommandData().Options
 
 	var duration int
-	var eventType guildEvent.EventType
+	var eventType guildData.EventType
 	var description string
 
 	// Map options by name for easy access
@@ -29,15 +29,15 @@ func createGuildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.
 	if opt, ok := optionMap["duration"]; ok && opt.Type == discordgo.ApplicationCommandOptionInteger {
 		duration = int(opt.IntValue())
 	} else {
-		respondWithError(s, i, "Invalid or missing 'duration' option.")
+		utils.RespondWithError(s, i, "Invalid or missing 'duration' option.")
 		return
 	}
 
 	// Retrieve the event type (required, string)
 	if opt, ok := optionMap["event-type"]; ok && opt.Type == discordgo.ApplicationCommandOptionInteger {
-		eventType = guildEvent.EventType(opt.IntValue())
+		eventType = guildData.EventType(opt.IntValue())
 	} else {
-		respondWithError(s, i, "Invalid or missing 'event-type' option.")
+		utils.RespondWithError(s, i, "Invalid or missing 'event-type' option.")
 		return
 	}
 
@@ -49,7 +49,7 @@ func createGuildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.
 	}
 
 	// Create the event based on the event type
-	event := guildEvent.NewGuildEvent(len(g.Events), eventType, description, time.Now(), duration)
+	event := guildData.NewGuildEvent(len(g.Events), eventType, description, time.Now(), duration)
 
 	// Add the event to the bot's events map
 	g.Events[event.GetId()] = event

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ItsLukV/Guild-bot/src/guildData"
-	"github.com/ItsLukV/Guild-bot/src/guildEvent"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -84,9 +83,13 @@ func LoadGuildBot() (guildData.GuildBot, error) {
 	if err != nil {
 		return guildData.GuildBot{}, fmt.Errorf("failed to fetch users: %w", err)
 	}
+	guildEvents, err := GetInstance().fetchEvents()
+	if err != nil {
+		return guildData.GuildBot{}, fmt.Errorf("failed to fetch guild events: %w", err)
+	}
 	return guildData.GuildBot{
 		Users:  users,
-		Events: make(map[int]guildEvent.Event),
+		Events: guildEvents,
 	}, nil
 }
 
@@ -197,7 +200,7 @@ func (d *Database) saveUsers(users map[string]guildData.GuildUser) error {
 }
 
 // Saves the event to the db
-func (d *Database) SaveEvent(event guildEvent.Event) error {
+func (d *Database) SaveEvent(event guildData.Event) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Set a timeout
 	defer cancel()                                                          // Ensure the context is cancelled
 
@@ -269,7 +272,7 @@ func (d *Database) fetchUsers() (map[string]guildData.GuildUser, error) {
 	return users, nil
 }
 
-func (d *Database) fetchEvents() (map[int]guildEvent.Event, error) {
+func (d *Database) fetchEvents() (map[int]guildData.Event, error) {
 	// Create a context for the query
 	ctx := context.Background()
 
@@ -287,7 +290,7 @@ func (d *Database) fetchEvents() (map[int]guildEvent.Event, error) {
 	defer rows.Close()
 
 	// Create a map to store the results
-	events := make(map[int]guildEvent.Event)
+	events := make(map[int]guildData.Event)
 
 	// Iterate through the rows and populate the map
 	for rows.Next() {
@@ -304,7 +307,7 @@ func (d *Database) fetchEvents() (map[int]guildEvent.Event, error) {
 		}
 
 		// Store the user in the map with the snowflake as the key
-		events[id] = guildEvent.NewGuildEvent(id, guildEvent.EventType(guild_type_id), description, start_time, duration_hours)
+		events[id] = guildData.NewGuildEvent(id, guildData.EventType(guild_type_id), description, start_time, duration_hours)
 	}
 
 	// Check for any errors that occurred during iteration

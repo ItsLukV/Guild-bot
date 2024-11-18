@@ -1,11 +1,9 @@
 package commands
 
 import (
-	"log"
 	"strings"
 
 	guildData "github.com/ItsLukV/Guild-bot/src/guildData"
-	"github.com/ItsLukV/Guild-bot/src/guildEvent"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -44,10 +42,10 @@ var (
 					Name:        "event-type",
 					Description: "The type of the guild event",
 					Required:    true,
-					Choices: generateChoices([]guildEvent.EventType{
-						guildEvent.Slayer,
-						guildEvent.Diana,
-						guildEvent.Dungeons,
+					Choices: generateChoices([]guildData.EventType{
+						guildData.Slayer,
+						guildData.Diana,
+						guildData.Dungeons,
 					}),
 				},
 				{
@@ -83,7 +81,7 @@ var (
 	}
 )
 
-func generateChoices(events []guildEvent.EventType) []*discordgo.ApplicationCommandOptionChoice {
+func generateChoices(events []guildData.EventType) []*discordgo.ApplicationCommandOptionChoice {
 	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(events))
 	for i, event := range events {
 		choices[i] = &discordgo.ApplicationCommandOptionChoice{
@@ -92,17 +90,4 @@ func generateChoices(events []guildEvent.EventType) []*discordgo.ApplicationComm
 		}
 	}
 	return choices
-}
-
-func respondWithError(s *discordgo.Session, i *discordgo.InteractionCreate, message string) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: message,
-			Flags:   discordgo.MessageFlagsEphemeral, // Only visible to the user
-		},
-	})
-	if err != nil {
-		log.Printf("Failed to send error response: %v", err)
-	}
 }

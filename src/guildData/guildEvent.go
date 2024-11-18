@@ -1,4 +1,4 @@
-package guildEvent
+package guildData
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type Event interface {
 	GetStartTime() time.Time
 	Start() error
 	End() error
-	AddUser() error
+	AddUser(user GuildUser) error
 }
 
 type EventType int
@@ -88,7 +88,7 @@ func (g *GuildEvent) End() error {
 	return nil
 }
 
-func (g *GuildEvent) AddUser() error {
+func (g *GuildEvent) AddUser(user GuildUser) error {
 	// Common add user logic
 	return nil
 }
@@ -107,6 +107,11 @@ type SlayerEventData struct {
 type SlayerEvent struct {
 	GuildEvent
 	Data map[string]SlayerEventData
+}
+
+func (g *SlayerEvent) AddUser(user GuildUser) error {
+	// Common add user logic
+	return nil
 }
 
 type DianaEvent struct {

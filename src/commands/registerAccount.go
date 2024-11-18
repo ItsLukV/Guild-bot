@@ -58,7 +58,7 @@ func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 			DiscordUsername: i.Member.User.Username,
 		}
 		user := g.Users[i.Member.User.ID]
-		err := db.GetInstance().AddUser(user)
+		err := db.GetInstance().SaveUser(user)
 		if err != nil {
 			log.Println("Error saving user:", err)
 			respondWithError(s, i, "Failed to save user (Please contact support)")

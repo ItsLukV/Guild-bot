@@ -1,21 +1,22 @@
 # Build Stage
+FROM golang:1.23.1 AS buildstage
 
-FROM golang:1.23.1 AS BuildStage
+WORKDIR /build
 
-WORKDIR /
-
-COPY . .
-
+COPY go.mod go.sum ./
 RUN go mod download
 
-RUN go build -o guild-bot ./src/main.go
+COPY . .
+# Build for Linux with static linking
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /build/guild-bot ./src/main.go
 
+# Final Stage
 FROM alpine:latest
 
-WORKDIR /
+WORKDIR /app
 
-COPY --from=BuildStage /guild-bot /guild-bot
+# Copy the statically built binary
+COPY --from=buildstage /build/guild-bot /app/guild-bot
 
-USER nonroo:nonroot
-
-ENTRYPOINT [ "/guild-bot" ]
+# Use the binary as the entrypoint
+ENTRYPOINT ["/app/guild-bot"]

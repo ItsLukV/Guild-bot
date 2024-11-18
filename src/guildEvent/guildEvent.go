@@ -1,6 +1,7 @@
 package guildEvent
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -12,28 +13,45 @@ type Event interface {
 	GetId() int
 	GetType() EventType
 	GetDescription() string
-	GetDuration() time.Duration
-	IsActive() bool
+	GetDuration() int
+	GetIsActive() bool
+	GetStartTime() time.Time
 	Start() error
 	End() error
 	AddUser() error
 }
 
-type EventType string
+type EventType int
 
 const (
-	Slayer   EventType = "slayer"
-	Diana    EventType = "diana"
-	Dungeons EventType = "dungeons"
+	// Slayer   EventType = "slayer"
+	// Diana    EventType = "diana"
+	// Dungeons EventType = "dungeons"
+	Slayer   EventType = 0
+	Diana    EventType = 1
+	Dungeons EventType = 2
 )
 
+func (e EventType) String() string {
+	switch e {
+	case Slayer:
+		return "slayer"
+	case Diana:
+		return "diana"
+	case Dungeons:
+		return "dungeons"
+	default:
+		return fmt.Sprintf("%d", e)
+	}
+}
+
 type GuildEvent struct {
-	Id          int
-	Type        EventType
-	Description string
-	// Users
-	StartTime time.Time
-	EndTime   time.Time
+	Id            int
+	Type          EventType
+	Description   string
+	StartTime     time.Time
+	DurationHours int
+	IsActive      bool
 }
 
 func (g *GuildEvent) GetId() int {
@@ -48,13 +66,16 @@ func (g *GuildEvent) GetDescription() string {
 	return g.Description
 }
 
-func (g *GuildEvent) GetDuration() time.Duration {
-	return g.EndTime.Sub(g.StartTime)
+func (g *GuildEvent) GetIsActive() bool {
+	return g.IsActive
 }
 
-func (g *GuildEvent) IsActive() bool {
-	now := time.Now()
-	return now.After(g.StartTime) && now.Before(g.EndTime)
+func (g *GuildEvent) GetStartTime() time.Time {
+	return g.StartTime
+}
+
+func (g *GuildEvent) GetDuration() int {
+	return g.DurationHours
 }
 
 func (g *GuildEvent) Start() error {
@@ -76,8 +97,16 @@ func (g *GuildEvent) AddUser() error {
 // ---------------- Costum events ----------------
 // -----------------------------------------------
 
+type SlayerEventData struct {
+	User             string
+	Date             time.Time
+	ZombieTier1Kills int
+	ZombieTier2Kills int
+}
+
 type SlayerEvent struct {
 	GuildEvent
+	Data map[string]SlayerEventData
 }
 
 type DianaEvent struct {
@@ -92,21 +121,21 @@ type DungeonsEvent struct {
 // ---------------- Constructors -----------------
 // -----------------------------------------------
 
-func NewGuildEvent(eventType EventType, description string, durationHours int) Event {
-	startTime := time.Now()
-	endTime := startTime.Add(time.Duration(durationHours) * time.Hour)
+func NewGuildEvent(id int, eventType EventType, description string, startTime time.Time, durationHours int) Event {
 	baseEvent := GuildEvent{
-		Id:          1,
-		Type:        eventType,
-		Description: description,
-		StartTime:   startTime,
-		EndTime:     endTime,
+		Id:            id,
+		Type:          eventType,
+		Description:   description,
+		StartTime:     startTime,
+		DurationHours: durationHours,
+		IsActive:      false,
 	}
 
 	switch eventType {
 	case Slayer:
 		return &SlayerEvent{
 			GuildEvent: baseEvent,
+			Data:       make(map[string]SlayerEventData),
 		}
 	case Diana:
 		return &DianaEvent{
@@ -120,3 +149,48 @@ func NewGuildEvent(eventType EventType, description string, durationHours int) E
 		return &baseEvent
 	}
 }
+
+// Example data
+// "slayer_bosses": {
+// 	"zombie": {
+// 		"claimed_levels": {
+// 			"level_1": true,
+// 			"level_2": true,
+// 			"level_3": true,
+// 			"level_4": true,
+// 			"level_5": true,
+// 			"level_6": true,
+// 			"level_7_special": true,
+// 			"level_8_special": true,
+// 			"level_9_special": true
+// 		},
+// 		"boss_kills_tier_0": 128,
+// 		"xp": 3896465,
+// 		"boss_kills_tier_1": 185,
+// 		"boss_kills_tier_2": 32,
+// 		"boss_kills_tier_3": 293,
+// 		"boss_kills_tier_4": 2479,
+// 		"boss_attempts_tier_4": 72,
+// 		"boss_attempts_tier_0": 39
+// 	},
+// 	"spider": {
+// 		"claimed_levels": {
+// 			"level_1": true,
+// 			"level_2": true,
+// 			"level_3": true,
+// 			"level_4": true,
+// 			"level_5": true,
+// 			"level_6": true,
+// 			"level_7": true,
+// 			"level_8": true,
+// 			"level_9": true
+// 		},
+// 		"boss_kills_tier_0": 10,
+// 		"xp": 1000000,
+// 		"boss_kills_tier_1": 36,
+// 		"boss_kills_tier_2": 28,
+// 		"boss_kills_tier_3": 1982,
+// 		"boss_attempts_tier_3": 1940,
+// 		"boss_attempts_tier_2": 5,
+// 		"boss_attempts_tier_1": 14
+// 	},

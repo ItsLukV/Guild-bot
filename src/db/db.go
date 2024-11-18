@@ -43,14 +43,14 @@ func GetInstance() *Database {
 		lock.Lock()
 		defer lock.Unlock()
 		if singleInstance == nil {
-			fmt.Println("Creating single instance now.")
+			log.Println("Creating single instance now.")
 			singleInstance = &Database{}
 			singleInstance.init()
 		} else {
-			fmt.Println("Single instance already created.")
+			log.Println("Single instance already created.")
 		}
 	} else {
-		fmt.Println("Single instance already created.")
+		// log.Println("Single instance already created.")
 	}
 
 	return singleInstance
@@ -79,19 +79,35 @@ func (d *Database) Close() {
 	d.pool.Close()
 }
 
+func LoadGuildBot() (guildData.GuildBot, error) {
+	users, err := GetInstance().fetchUsers()
+	if err != nil {
+		return guildData.GuildBot{}, fmt.Errorf("failed to fetch users: %w", err)
+	}
+	return guildData.GuildBot{
+		Users:  users,
+		Events: make(map[int]guildEvent.Event),
+	}, nil
+}
+
+// -----------------------------------------------
+// ------------- Insertion functions -------------
+// -----------------------------------------------
+
 func (d *Database) Save(bot guildData.GuildBot) {
 	err := d.saveUsers(bot.Users)
 	if err != nil {
 		return
 	}
+
 }
 
-func (d *Database) AddUser(user guildData.GuildUser) error {
+func (d *Database) SaveUser(user guildData.GuildUser) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Set a timeout
 	defer cancel()                                                          // Ensure the context is cancelled
 
 	query := `
-        INSERT INTO users (discord_snowflake, discord_username, minecraft_username, minecraft_uuid)
+        INSERT INTO Users (discord_snowflake, discord_username, minecraft_username, minecraft_uuid)
         VALUES ($1, $2, $3, $4)
         ON CONFLICT (discord_snowflake) DO NOTHING;
     `
@@ -168,7 +184,7 @@ func (d *Database) saveUsers(users map[string]guildData.GuildUser) error {
 
 	// Insert into the main table with conflict handling
 	_, err = tx.Exec(ctx, `
-        INSERT INTO users (discord_snowflake, discord_username, minecraft_username, minecraft_uuid)
+        INSERT INTO Users (discord_snowflake, discord_username, minecraft_username, minecraft_uuid)
         SELECT discord_snowflake, discord_username, minecraft_username, minecraft_uuid FROM temp_users
         ON CONFLICT (discord_snowflake) DO NOTHING;
     `)
@@ -176,9 +192,39 @@ func (d *Database) saveUsers(users map[string]guildData.GuildUser) error {
 		return fmt.Errorf("failed to insert from temporary table: %w", err)
 	}
 
-	log.Printf("Batch insert completed successfully! Inserted %d users.", copyCount)
+	log.Printf("Batch insert completed successfully! Inserted %d Users.", copyCount)
 	return nil
 }
+
+// Saves the event to the db
+func (d *Database) SaveEvent(event guildEvent.Event) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Set a timeout
+	defer cancel()                                                          // Ensure the context is cancelled
+
+	query := `
+        INSERT INTO GuildEvent (id, guild_type_id, description, start_time, duration_hours)
+        VALUES ($1, $2, $3, $4, $5)
+    `
+
+	_, err := d.pool.Exec(ctx, query,
+		event.GetId(),
+		event.GetType(),
+		event.GetDescription(),
+		event.GetStartTime(),
+		event.GetDuration(),
+	)
+	if err != nil {
+		log.Printf("Failed to insert guild event %d: %v", event.GetId(), err)
+		return fmt.Errorf("failed to insert guild event: %w", err)
+	}
+
+	log.Printf("Guild event %d inserted successfully.", event.GetId())
+	return nil
+}
+
+// -----------------------------------------------
+// -------------- Fetcher functions --------------
+// -----------------------------------------------
 
 func (d *Database) fetchUsers() (map[string]guildData.GuildUser, error) {
 	// Create a context for the query
@@ -223,13 +269,48 @@ func (d *Database) fetchUsers() (map[string]guildData.GuildUser, error) {
 	return users, nil
 }
 
-func LoadGuildBot() (guildData.GuildBot, error) {
-	users, err := GetInstance().fetchUsers()
+func (d *Database) fetchEvents() (map[int]guildEvent.Event, error) {
+	// Create a context for the query
+	ctx := context.Background()
+
+	// Define the query to fetch all guild events
+	query := `
+        SELECT id, guild_type_id, description, start_time, duration_hours
+        FROM GuildEvent
+    `
+
+	// Execute the query
+	rows, err := d.pool.Query(ctx, query)
 	if err != nil {
-		return guildData.GuildBot{}, fmt.Errorf("failed to fetch users: %w", err)
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
-	return guildData.GuildBot{
-		Users:  users,
-		Events: make(map[int]guildEvent.Event),
-	}, nil
+	defer rows.Close()
+
+	// Create a map to store the results
+	events := make(map[int]guildEvent.Event)
+
+	// Iterate through the rows and populate the map
+	for rows.Next() {
+		var id int
+		var guild_type_id int
+		var description string
+		var start_time time.Time
+		var duration_hours int
+
+		// Scan the row
+		err := rows.Scan(&id, &guild_type_id, &description, &start_time, &duration_hours)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		// Store the user in the map with the snowflake as the key
+		events[id] = guildEvent.NewGuildEvent(id, guildEvent.EventType(guild_type_id), description, start_time, duration_hours)
+	}
+
+	// Check for any errors that occurred during iteration
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("error occurred during row iteration: %w", rows.Err())
+	}
+
+	return events, nil
 }

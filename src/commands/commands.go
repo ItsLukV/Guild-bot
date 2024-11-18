@@ -31,7 +31,7 @@ var (
 			// All commands and options must have a description
 			// Commands/options without description will fail the registration
 			// of the command.
-			Description: "Create",
+			Description: "Create a guild event.",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
@@ -40,7 +40,7 @@ var (
 					Required:    true,
 				},
 				{
-					Type:        discordgo.ApplicationCommandOptionString,
+					Type:        discordgo.ApplicationCommandOptionInteger,
 					Name:        "event-type",
 					Description: "The type of the guild event",
 					Required:    true,
@@ -58,11 +58,28 @@ var (
 				},
 			},
 		},
+		{
+			Name: "start-event",
+			// All commands and options must have a description
+			// Commands/options without description will fail the registration
+			// of the command.
+			Description: "Create",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:         discordgo.ApplicationCommandOptionInteger,
+					Name:         "event-id",
+					Description:  "The type of the guild event",
+					Required:     true,
+					Autocomplete: true,
+				},
+			},
+		},
 	}
 
 	CommandHandlers = map[string]func(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate){
 		"register":     registerAccount,
 		"create-event": createGuildEvent,
+		"start-event":  startguildEvent,
 	}
 )
 
@@ -70,8 +87,8 @@ func generateChoices(events []guildEvent.EventType) []*discordgo.ApplicationComm
 	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(events))
 	for i, event := range events {
 		choices[i] = &discordgo.ApplicationCommandOptionChoice{
-			Name:  strings.ToLower(string(event)),
-			Value: string(event),
+			Name:  strings.ToLower(event.String()),
+			Value: event,
 		}
 	}
 	return choices

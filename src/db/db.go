@@ -67,11 +67,12 @@ func (d *Database) init() {
 	dbpool, err := pgxpool.New(context.Background(), psqlInfo)
 	if err != nil {
 		log.Fatalf("Unable to create connection pool: %v\n", err)
+	} else {
+		log.Println("Successfully connected!")
 	}
 
 	d.pool = dbpool
 
-	fmt.Println("Successfully connected!")
 }
 
 func (d *Database) Close() {

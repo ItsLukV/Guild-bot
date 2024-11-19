@@ -1,29 +1,28 @@
-# Node.js
-node_modules/
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# Logs
-logs
-*.log
-npm-debug.log*
+# Test binary, built with `go test -c`
+*.test
 
-# Dependency directories
-pids
-logs
-*.pid
-*.seed
-*.pid.lock
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
 
-# Optional npm cache directory
-.npm
+# Dependency directories (remove the comment below to include it)
+# vendor/
 
-# Optional eslint cache
-.eslintcache
+# Go workspace file
+go.work
+go.work.sum
 
-# Optional REPL history
-.node_repl_history
+# env file
+.env
 
-# Environment variables
-.env*
-
-dist/
+# exampledata from the hypixel data
 exampleData.json

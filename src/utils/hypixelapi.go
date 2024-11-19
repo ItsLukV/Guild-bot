@@ -92,6 +92,19 @@ type Links struct {
 	Discord string `json:"DISCORD"`
 }
 
+type SkyblockProfilesByPlayerData struct {
+	Success  bool      `json:"success"`
+	Profiles []Profile `json:"profiles"`
+}
+
+type Profile struct {
+	ProfileID         string                 `json:"profile_id"`
+	CommunityUpgrades interface{}            `json:"community_upgrades"`
+	Members           map[string]interface{} `json:"members"`
+	CuteName          string                 `json:"cute_name"`
+	Selected          bool                   `json:"selected"`
+}
+
 // -----------------------------------------------
 // ------------ Hypixel API Functions ------------
 // -----------------------------------------------
@@ -125,6 +138,33 @@ func CheckUserName(minecraftUUID string) (*string, error) {
 		return nil, err
 	}
 	return &data.Player.SocialMedia.Links.Discord, nil
+}
+
+func FetchActivePlayerProfile(minecraftUUID string) (string, error) {
+	key := os.Getenv("HYPIXEL_API")
+	url := fmt.Sprintf("https://api.hypixel.net/v2/skyblock/profiles?key=%v&uuid=%v", key, minecraftUUID)
+
+	data, err := fetchApi[SkyblockProfilesByPlayerData](url)
+	if err != nil {
+		return "", err
+	}
+	// Call `getSelectedProfileID` to get the profile ID.
+	profileID := getSelectedProfileID(data)
+	if profileID == "" {
+		return "", fmt.Errorf("no active profile found for player with UUID: %s", minecraftUUID)
+	}
+
+	return profileID, nil
+}
+
+func getSelectedProfileID(data *SkyblockProfilesByPlayerData) string {
+	for _, profile := range data.Profiles {
+		if profile.Selected {
+			return profile.ProfileID
+		}
+	}
+	// Return an empty string if no profile is selected
+	return ""
 }
 
 // -----------------------------------------------

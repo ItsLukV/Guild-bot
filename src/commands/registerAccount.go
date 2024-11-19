@@ -13,7 +13,7 @@ import (
 
 func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Check if the user is already registered
-	if v, exists := g.Users[i.Member.User.ID]; exists {
+	if v, exists := g.Users[guildData.Snowflake(i.Member.User.ID)]; exists {
 		utils.RespondWithError(s, i, fmt.Sprintf("You are already registered with the Minecraft IGN: %s", v.McUsername))
 		log.Println("User already registered:", i.Member.User.ID)
 		return
@@ -51,13 +51,13 @@ func registerAccount(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 	// Verify that the Discord username matches
 	if discordName != nil && strings.EqualFold(*discordName, i.Member.User.Username) {
 		// Register the user
-		g.Users[i.Member.User.ID] = guildData.GuildUser{
-			Snowflake:       i.Member.User.ID,
+		g.Users[guildData.Snowflake(i.Member.User.ID)] = guildData.GuildUser{
+			Snowflake:       guildData.Snowflake(i.Member.User.ID),
 			McUUID:          mcUuid.Id,
 			McUsername:      mcUuid.Name,
 			DiscordUsername: i.Member.User.Username,
 		}
-		user := g.Users[i.Member.User.ID]
+		user := g.Users[guildData.Snowflake(i.Member.User.ID)]
 		err := db.GetInstance().SaveUser(user)
 		if err != nil {
 			log.Println("Error saving user:", err)

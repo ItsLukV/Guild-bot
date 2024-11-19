@@ -1,13 +1,15 @@
 package guildData
 
+type Snowflake string
+
 type GuildUser struct {
-	Snowflake       string
-	McUUID          string
-	McUsername      string
+	Snowflake       Snowflake
 	DiscordUsername string
+	McUsername      string
+	McUUID          string
 }
 
 type GuildBot struct {
-	Users  map[string]GuildUser
-	Events map[int]Event
+	Users  map[Snowflake]GuildUser
+	Events map[string]Event
 }

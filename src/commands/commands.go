@@ -64,7 +64,7 @@ var (
 			Description: "Create",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
-					Type:         discordgo.ApplicationCommandOptionInteger,
+					Type:         discordgo.ApplicationCommandOptionString,
 					Name:         "event-id",
 					Description:  "The type of the guild event",
 					Required:     true,

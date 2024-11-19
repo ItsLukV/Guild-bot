@@ -9,6 +9,7 @@ import (
 	guildData "github.com/ItsLukV/Guild-bot/src/guildData"
 	"github.com/ItsLukV/Guild-bot/src/utils"
 	"github.com/bwmarrin/discordgo"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 func createGuildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -48,16 +49,22 @@ func createGuildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.
 		description = ""
 	}
 
+	id, err := gonanoid.New()
+	if err != nil {
+		log.Printf("Failed to create a Id for guildEvent eventType: %v, description: %v , duration: %v", eventType, description, duration)
+	}
 	// Create the event based on the event type
-	event := guildData.NewGuildEvent(len(g.Events), eventType, description, time.Now(), duration)
-
+	event := guildData.NewGuildEvent(id, eventType, description, time.Now(), duration)
+	log.Print(len(g.Users))
+	user := g.Users["365889587794673664"]
+	event.AddUser(&user)
 	// Add the event to the bot's events map
 	g.Events[event.GetId()] = event
 
 	db.GetInstance().SaveEvent(g.Events[event.GetId()])
 
 	// Respond to the user
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf("Created a **%s** event with ID `%d`.\nDescription: %s", event.GetType(), event.GetId(), event.GetDescription()),

@@ -2,7 +2,12 @@ package guildData
 
 import (
 	"fmt"
+	"log"
+	"strings"
 	"time"
+
+	"github.com/ItsLukV/Guild-bot/src/utils"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 // -----------------------------------------------
@@ -10,7 +15,7 @@ import (
 // -----------------------------------------------
 
 type Event interface {
-	GetId() int
+	GetId() string
 	GetType() EventType
 	GetDescription() string
 	GetDuration() int
@@ -18,7 +23,7 @@ type Event interface {
 	GetStartTime() time.Time
 	Start() error
 	End() error
-	AddUser(user GuildUser) error
+	AddUser(user *GuildUser) error
 }
 
 type EventType int
@@ -45,16 +50,61 @@ func (e EventType) String() string {
 	}
 }
 
+type BossType int
+
+const (
+	Zombie BossType = iota
+	Spider
+	Wolf
+	Enderman
+	Vampire
+	Blaze
+)
+
+func (e BossType) String() string {
+	switch e {
+	case Zombie:
+		return "zombie"
+	case Spider:
+		return "spider"
+	case Wolf:
+		return "wolf"
+	case Enderman:
+		return "enderman"
+	case Vampire:
+		return "vampire"
+	case Blaze:
+		return "blaze"
+	default:
+		return fmt.Sprintf("%d", e)
+	}
+}
+
+func ParseBossTypeString(str string) (BossType, bool) {
+	bossMap := map[string]BossType{
+		"zombie":   Zombie,
+		"spider":   Spider,
+		"wolf":     Wolf,
+		"enderman": Enderman,
+		"vampire":  Vampire,
+		"blaze":    Blaze,
+	}
+
+	boss, ok := bossMap[strings.ToLower(str)]
+	return boss, ok
+}
+
 type GuildEvent struct {
-	Id            int
+	Id            string
 	Type          EventType
 	Description   string
 	StartTime     time.Time
 	DurationHours int
 	IsActive      bool
+	Users         map[Snowflake]*GuildUser
 }
 
-func (g *GuildEvent) GetId() int {
+func (g *GuildEvent) GetId() string {
 	return g.Id
 }
 
@@ -80,6 +130,7 @@ func (g *GuildEvent) GetDuration() int {
 
 func (g *GuildEvent) Start() error {
 	// Common start logic
+	log.Panicf("This event (%v) has not been implemented", g)
 	return nil
 }
 
@@ -88,30 +139,40 @@ func (g *GuildEvent) End() error {
 	return nil
 }
 
-func (g *GuildEvent) AddUser(user GuildUser) error {
-	// Common add user logic
+func (g *GuildEvent) AddUser(user *GuildUser) error {
+	log.Printf("Added user: %v (%v) to %v", user.Snowflake, user.DiscordUsername, g.Id)
+	g.Users[user.Snowflake] = user
 	return nil
 }
 
 // -----------------------------------------------
-// ---------------- Costum events ----------------
+// ---------------- Custom events ----------------
 // -----------------------------------------------
 
 type SlayerEventData struct {
-	User             string
-	Date             time.Time
-	ZombieTier1Kills int
-	ZombieTier2Kills int
+	Id        string
+	FetchDate time.Time
+	BossData  map[BossType]SlayerBossData // Per boss data
+}
+
+type SlayerBossData struct {
+	Id                string
+	BossKillsTier0    int
+	BossKillsTier1    int
+	BossKillsTier2    int
+	BossKillsTier3    int
+	BossKillsTier4    int
+	BossAttemptsTier0 int
+	BossAttemptsTier1 int
+	BossAttemptsTier2 int
+	BossAttemptsTier3 int
+	BossAttemptsTier4 int
+	Xp                int
 }
 
 type SlayerEvent struct {
 	GuildEvent
-	Data map[string]SlayerEventData
-}
-
-func (g *SlayerEvent) AddUser(user GuildUser) error {
-	// Common add user logic
-	return nil
+	Data map[Snowflake]SlayerEventData // Per player data
 }
 
 type DianaEvent struct {
@@ -126,7 +187,7 @@ type DungeonsEvent struct {
 // ---------------- Constructors -----------------
 // -----------------------------------------------
 
-func NewGuildEvent(id int, eventType EventType, description string, startTime time.Time, durationHours int) Event {
+func NewGuildEvent(id string, eventType EventType, description string, startTime time.Time, durationHours int) Event {
 	baseEvent := GuildEvent{
 		Id:            id,
 		Type:          eventType,
@@ -134,14 +195,17 @@ func NewGuildEvent(id int, eventType EventType, description string, startTime ti
 		StartTime:     startTime,
 		DurationHours: durationHours,
 		IsActive:      false,
+		Users:         make(map[Snowflake]*GuildUser),
 	}
 
 	switch eventType {
 	case Slayer:
-		return &SlayerEvent{
+		playerData := make(map[Snowflake]SlayerEventData)
+		slayerEvent := &SlayerEvent{
 			GuildEvent: baseEvent,
-			Data:       make(map[string]SlayerEventData),
+			Data:       playerData,
 		}
+		return slayerEvent
 	case Diana:
 		return &DianaEvent{
 			GuildEvent: baseEvent,
@@ -153,6 +217,65 @@ func NewGuildEvent(id int, eventType EventType, description string, startTime ti
 	default:
 		return &baseEvent
 	}
+}
+
+func (slayerEvent *SlayerEvent) Start() error {
+	log.Printf("Started a event with %v players", len(slayerEvent.Users))
+	for snowflake, v := range slayerEvent.Users {
+		profile, err := utils.FetchActivePlayerProfile(v.McUUID)
+		if err != nil {
+			return fmt.Errorf("failed to get Active Player Profile: %w", err)
+		}
+
+		// Fetch the json data as a utils.SkyblockPlayerSlayerData struct
+		v, err := utils.FetchPlayerSlayerData(v.McUUID, profile)
+		if err != nil {
+			return fmt.Errorf("failed to fetch slayer data: %w", err)
+		}
+
+		// Translate the SkyblockPlayerSlayerData struct to
+		slayerData := convertUtilsSlayerDataToEventSlayerData(v)
+		id, err := gonanoid.New()
+		if err != nil {
+			log.Printf("Failed to create a Id for SlayerEventData eventId: %v", slayerEvent.Id)
+		}
+		slayerEvent.Data[snowflake] = SlayerEventData{
+			Id:        id,
+			FetchDate: time.Now(),
+			BossData:  slayerData,
+		}
+	}
+	return nil
+}
+
+func convertUtilsSlayerDataToEventSlayerData(slayerData *utils.SkyblockPlayerSlayerData) map[BossType]SlayerBossData {
+	out := make(map[BossType]SlayerBossData)
+	for k, v := range slayerData.SlayerBosses {
+		if bossType, ok := ParseBossTypeString(k); ok {
+			id, err := gonanoid.New()
+			if err != nil {
+				log.Printf("Failed to create a Id for SlayerBossData bossType: %v", bossType)
+			}
+			out[bossType] = SlayerBossData{
+				Id:                id,
+				BossKillsTier0:    v.BossKillsTier0,
+				BossKillsTier1:    v.BossKillsTier1,
+				BossKillsTier2:    v.BossKillsTier2,
+				BossKillsTier3:    v.BossKillsTier3,
+				BossKillsTier4:    v.BossKillsTier4,
+				BossAttemptsTier0: v.BossAttemptsTier0,
+				BossAttemptsTier1: v.BossAttemptsTier1,
+				BossAttemptsTier2: v.BossAttemptsTier2,
+				BossAttemptsTier3: v.BossAttemptsTier3,
+				BossAttemptsTier4: v.BossAttemptsTier4,
+				Xp:                v.Xp,
+			}
+		} else {
+			// Handle invalid BossType strings if necessary
+			fmt.Printf("Invalid BossType: %s\n", k)
+		}
+	}
+	return out
 }
 
 // Example data

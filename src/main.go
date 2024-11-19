@@ -23,17 +23,11 @@ var s *discordgo.Session
 var data guildData.GuildBot
 
 func init() {
-	log.Printf("Connecting with: user=%s, host=%s, database=%s, password=%s",
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB"),
-		os.Getenv("DB_PASSWORD"),
-	)
 	var err error
 	data, err = db.LoadGuildBot()
 	if err != nil {
-		log.Println("Database connection error: %v", err)
-		log.Panicln("Failed to load guildBot from the Database")
+		log.Println("Failed to load guildBot from the Database")
+		log.Panicf("Database connection error: %v", err)
 	}
 }
 

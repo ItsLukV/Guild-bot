@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/ItsLukV/Guild-bot/src/db"
 	"github.com/ItsLukV/Guild-bot/src/guildData"
 	"github.com/ItsLukV/Guild-bot/src/utils"
 
@@ -18,9 +19,9 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		data := i.ApplicationCommandData()
 
 		// Retrieve the event ID from the options
-		var eventID int
-		if len(data.Options) > 0 && data.Options[0].Type == discordgo.ApplicationCommandOptionInteger {
-			eventID = int(data.Options[0].IntValue())
+		var eventID string
+		if len(data.Options) > 0 && data.Options[0].Type == discordgo.ApplicationCommandOptionString {
+			eventID = string(data.Options[0].StringValue())
 		} else {
 			utils.RespondWithError(s, i, "Invalid or missing 'event-id' option.")
 			return
@@ -29,7 +30,7 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		// Find the event in your bot's event map
 		event, exists := g.Events[eventID]
 		if !exists {
-			utils.RespondWithError(s, i, fmt.Sprintf("Event with ID %d not found.", eventID))
+			utils.RespondWithError(s, i, fmt.Sprintf("Event with ID %v not found.", eventID))
 			return
 		}
 
@@ -39,6 +40,7 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 			utils.RespondWithError(s, i, fmt.Sprintf("Failed to start event: %v", err))
 			return
 		}
+		db.GetInstance().SaveStartEventData(event)
 
 		// Respond to the user confirming the event has started
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -49,8 +51,6 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		})
 		if err != nil {
 			log.Printf("Failed to send interaction response: %v", err)
-		} else {
-			event.Start()
 		}
 	// Autocomplete options introduce a new interaction type (8) for returning custom autocomplete results.
 	case discordgo.InteractionApplicationCommandAutocomplete:
@@ -59,7 +59,7 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		for _, event := range g.Events {
 			if !event.GetIsActive() {
 				choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-					Name:  fmt.Sprintf("Event %d: %s", event.GetId(), event.GetType()),
+					Name:  fmt.Sprintf("Event %v: %s", event.GetId(), event.GetType()),
 					Value: event.GetId(),
 				})
 			}

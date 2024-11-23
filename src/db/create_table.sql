@@ -12,10 +12,14 @@ CREATE TABLE IF NOT EXISTS GuildEventType (
 
 CREATE TABLE IF NOT EXISTS GuildEvent (
     id TEXT PRIMARY KEY,
+    event_name TEXT,
     guild_type_id INT REFERENCES GuildEventType(id),
     description TEXT,
     start_time TIMESTAMP,
-    duration_hours INT
+    last_fetch TIMESTAMP,
+    duration_hours INT,
+    is_active BOOLEAN,
+    hidden BOOLEAN
 );
 
 CREATE TABLE IF NOT EXISTS SlayerEventData (
@@ -26,14 +30,14 @@ CREATE TABLE IF NOT EXISTS SlayerEventData (
 );
 
 CREATE TABLE IF NOT EXISTS SlayerBossType (
-    id TEXT PRIMARY KEY,
+    id INT PRIMARY KEY,
     slayer_name TEXT
 );
 
 CREATE TABLE IF NOT EXISTS BossData (
     id TEXT PRIMARY KEY,
     slayer_event_data_id TEXT REFERENCES SlayerEventData(id),
-    slayer_boss_type_id TEXT REFERENCES SlayerBossType(id),
+    slayer_boss_type_id INT REFERENCES SlayerBossType(id),
     boss_kills_tier_0 INT NOT NULL DEFAULT 0,
     boss_kills_tier_1 INT NOT NULL DEFAULT 0,
     boss_kills_tier_2 INT NOT NULL DEFAULT 0,

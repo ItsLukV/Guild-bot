@@ -79,17 +79,17 @@ func (d *Database) Close() {
 	d.pool.Close()
 }
 
-func LoadGuildBot() (guildData.GuildBot, error) {
+func LoadGuildBot(guildBot *guildData.GuildBot) error {
 	// Fetch users from the database
 	users, err := GetInstance().fetchUsers()
 	if err != nil {
-		return guildData.GuildBot{}, fmt.Errorf("failed to fetch users: %w", err)
+		return fmt.Errorf("failed to fetch users: %w", err)
 	}
 
 	// Fetch events from the database
 	guildEvents, err := GetInstance().fetchEvents()
 	if err != nil {
-		return guildData.GuildBot{}, fmt.Errorf("failed to fetch guild events: %w", err)
+		return fmt.Errorf("failed to fetch guild events: %w", err)
 	}
 
 	// Iterate over fetched guild events
@@ -109,14 +109,14 @@ func LoadGuildBot() (guildData.GuildBot, error) {
 			// Type assertion to ensure this event is treated as a SlayerEvent
 			slayerEvent, ok := event.(*guildData.SlayerEvent)
 			if !ok {
-				return guildData.GuildBot{}, fmt.Errorf("failed to cast event to SlayerEvent")
+				return fmt.Errorf("failed to cast event to SlayerEvent")
 			}
 
 			// Start a goroutine to fetch and insert slayer data for this event
 			go func(e *guildData.SlayerEvent) {
-				err := GetInstance().fetchAndInsertSlayerData(e)
+				err := GetInstance().fetchSlayerData(e)
 				if err != nil {
-					log.Printf("Failed to fetch and insert Slayer data for event %d: %v", e.GetId(), err)
+					log.Printf("Failed to fetch Slayer data for event %s: %v", e.GetId(), err)
 				}
 			}(slayerEvent)
 		default:
@@ -125,10 +125,10 @@ func LoadGuildBot() (guildData.GuildBot, error) {
 	}
 
 	// Return the populated GuildBot struct
-	return guildData.GuildBot{
-		Users:  users,
-		Events: guildEvents,
-	}, nil
+	guildBot.Users = users
+	guildBot.Events = guildEvents
+	guildBot.EventSaver = GetInstance()
+	return nil
 }
 
 // -----------------------------------------------
@@ -166,16 +166,20 @@ func (d *Database) SaveEvent(event guildData.Event) error {
 	defer cancel()                                                          // Ensure the context is cancelled
 
 	query := `
-        INSERT INTO GuildEvent (id, guild_type_id, description, start_time, duration_hours)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO GuildEvent (id, event_name, guild_type_id, description, start_time, last_fetch, duration_hours, is_active, hidden)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `
 
 	_, err := d.pool.Exec(ctx, query,
 		event.GetId(),
+		event.GetEventName(),
 		event.GetType(),
 		event.GetDescription(),
 		event.GetStartTime(),
+		event.GetLastFetch(),
 		event.GetDuration(),
+		event.GetIsActive(),
+		event.IsHidden(),
 	)
 	if err != nil {
 		log.Printf("Failed to insert guild event %v: %v", event.GetId(), err)
@@ -186,7 +190,46 @@ func (d *Database) SaveEvent(event guildData.Event) error {
 	return nil
 }
 
-func (d *Database) SaveStartEventData(event guildData.Event) error {
+// UpdateEvent updates the existing event in the database
+func (d *Database) UpdateEvent(event guildData.Event) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Set a timeout
+	defer cancel()                                                          // Ensure the context is cancelled
+
+	query := `
+        UPDATE GuildEvent
+        SET event_name = $2,
+            guild_type_id = $3,
+            description = $4,
+            start_time = $5,
+            last_fetch = $6,
+            duration_hours = $7,
+            is_active = $8,
+            hidden = $9
+        WHERE id = $1
+    `
+
+	// Execute the update query with the appropriate values from the event
+	_, err := d.pool.Exec(ctx, query,
+		event.GetId(),          // $1: ID of the event to update
+		event.GetEventName(),   // $2: Event name
+		event.GetType(),        // $3: Type of the event
+		event.GetDescription(), // $4: Description of the event
+		event.GetStartTime(),   // $5: Start time of the event
+		event.GetLastFetch(),   // $6: Last fetch time
+		event.GetDuration(),    // $7: Duration in hours
+		event.GetIsActive(),    // $8: Is the event active?
+		event.IsHidden(),       // $9: Is the event hidden?
+	)
+	if err != nil {
+		log.Printf("Failed to update guild event %v: %v", event.GetId(), err)
+		return fmt.Errorf("failed to update guild event: %w", err)
+	}
+
+	log.Printf("Guild event %v updated successfully.", event.GetId())
+	return nil
+}
+
+func (d *Database) SaveEventData(event guildData.Event) error {
 	var wg sync.WaitGroup // Create a WaitGroup to manage goroutines
 
 	switch event.GetType() {
@@ -242,6 +285,7 @@ func (d *Database) SaveSlayerEventData(slayerEvent *guildData.SlayerEvent) error
 			_ = tx.Rollback(ctx)
 		} else {
 			err = tx.Commit(ctx)
+			log.Printf("Batch insert of slayer event data completed successfully!")
 		}
 	}()
 
@@ -261,33 +305,35 @@ func (d *Database) SaveSlayerEventData(slayerEvent *guildData.SlayerEvent) error
 	slayerDataRows := make([][]interface{}, 0, len(slayerEvent.Data))
 	slayerBossDataRows := make([][]interface{}, 0)
 
-	for userID, eventData := range slayerEvent.Data {
-		// Prepare data for temp_slayer_data
-		slayerDataRows = append(slayerDataRows, []interface{}{
-			eventData.Id,        // id
-			userID,              // user_id
-			eventData.FetchDate, // fetch_date
-			slayerEvent.Id,      // guild_event_id
-		})
-
-		// Prepare data for temp_slayer_boss_data
-		for bossType, bossData := range eventData.BossData {
-			slayerBossDataRows = append(slayerBossDataRows, []interface{}{
-				bossData.Id,                // id
-				eventData.Id,               // slayer_event_data_id
-				bossType,                   // slayer_boss_type
-				bossData.BossKillsTier0,    // tier_0_kills
-				bossData.BossKillsTier1,    // tier_1_kills
-				bossData.BossKillsTier2,    // tier_2_kills
-				bossData.BossKillsTier3,    // tier_3_kills
-				bossData.BossKillsTier4,    // tier_4_kills
-				bossData.BossAttemptsTier0, // tier_0_attempts
-				bossData.BossAttemptsTier1, // tier_1_attempts
-				bossData.BossAttemptsTier2, // tier_2_attempts
-				bossData.BossAttemptsTier3, // tier_3_attempts
-				bossData.BossAttemptsTier4, // tier_4_attempts
-				bossData.Xp,                // xp
+	for userID, eventDataList := range slayerEvent.Data {
+		for _, eventData := range eventDataList {
+			// Prepare data for temp_slayer_data
+			slayerDataRows = append(slayerDataRows, []interface{}{
+				eventData.Id,        // id
+				userID,              // user_id
+				eventData.FetchDate, // fetch_date
+				slayerEvent.Id,      // guild_event_id
 			})
+
+			// Prepare data for temp_slayer_boss_data
+			for bossType, bossData := range eventData.BossData {
+				slayerBossDataRows = append(slayerBossDataRows, []interface{}{
+					bossData.Id,                // id
+					eventData.Id,               // slayer_event_data_id
+					bossType,                   // slayer_boss_type
+					bossData.BossKillsTier0,    // tier_0_kills
+					bossData.BossKillsTier1,    // tier_1_kills
+					bossData.BossKillsTier2,    // tier_2_kills
+					bossData.BossKillsTier3,    // tier_3_kills
+					bossData.BossKillsTier4,    // tier_4_kills
+					bossData.BossAttemptsTier0, // tier_0_attempts
+					bossData.BossAttemptsTier1, // tier_1_attempts
+					bossData.BossAttemptsTier2, // tier_2_attempts
+					bossData.BossAttemptsTier3, // tier_3_attempts
+					bossData.BossAttemptsTier4, // tier_4_attempts
+					bossData.Xp,                // xp
+				})
+			}
 		}
 	}
 
@@ -302,7 +348,7 @@ func (d *Database) SaveSlayerEventData(slayerEvent *guildData.SlayerEvent) error
 		return fmt.Errorf("failed to copy data into temp_slayer_data: %w", err)
 	}
 
-	// Insert from temporary table into SlayerEventData (COMMIT needed before SlayerBossData insertion)
+	// Insert from temporary table into SlayerEventData
 	if _, err = tx.Exec(ctx, `
         INSERT INTO SlayerEventData (id, user_id, fetch_date, guild_event_id)
         SELECT id, user_id, fetch_date, guild_event_id FROM temp_slayer_data
@@ -310,24 +356,6 @@ func (d *Database) SaveSlayerEventData(slayerEvent *guildData.SlayerEvent) error
     `); err != nil {
 		return fmt.Errorf("failed to insert into slayer_event_data: %w", err)
 	}
-
-	// Now commit the transaction to ensure that `SlayerEventData` is updated in the database
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit SlayerEventData transaction: %w", err)
-	}
-
-	// Start a new transaction for SlayerBossData since it depends on committed SlayerEventData
-	tx, err = d.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start database transaction for slayer boss data: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback(ctx)
-		} else {
-			err = tx.Commit(ctx)
-		}
-	}()
 
 	if _, err = tx.Exec(ctx, `
         CREATE TEMP TABLE temp_slayer_boss_data (
@@ -415,7 +443,6 @@ func (d *Database) SaveSlayerEventData(slayerEvent *guildData.SlayerEvent) error
 		return fmt.Errorf("failed to insert into slayer_boss_data: %w", err)
 	}
 
-	log.Printf("Batch insert of slayer event data completed successfully!")
 	return nil
 }
 
@@ -471,7 +498,7 @@ func (d *Database) fetchEvents() (map[string]guildData.Event, error) {
 
 	// Define the query to fetch all guild events
 	query := `
-        SELECT id, guild_type_id, description, start_time, duration_hours
+        SELECT id, event_name, guild_type_id, description, start_time, last_fetch, duration_hours, is_active, hidden
         FROM GuildEvent
     `
 
@@ -488,20 +515,25 @@ func (d *Database) fetchEvents() (map[string]guildData.Event, error) {
 	// Iterate through the rows and populate the map
 	for rows.Next() {
 		var id string
+		var event_name string
 		var guild_type_id int
 		var description string
 		var start_time time.Time
+		var last_fetch time.Time
 		var duration_hours int
+		var is_active bool
+		var hidden bool
 
 		// Scan the row
-		err := rows.Scan(&id, &guild_type_id, &description, &start_time, &duration_hours)
+		err := rows.Scan(&id, &event_name, &guild_type_id, &description, &start_time, &last_fetch, &duration_hours, &is_active, &hidden)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
 		// Store the user in the map with the snowflake as the key
-		events[id] = guildData.NewGuildEvent(id, guildData.EventType(guild_type_id), description, start_time, duration_hours)
-		log.Printf("Loaded event: %v, type: %v, description: %v", id, guildData.EventType(guild_type_id), description)
+		events[id] = guildData.NewGuildEvent(id, event_name, guildData.EventType(guild_type_id), description, start_time, last_fetch, duration_hours, is_active, hidden)
+
+		log.Println(events[id].String())
 	}
 
 	// Check for any errors that occurred during iteration
@@ -512,11 +544,11 @@ func (d *Database) fetchEvents() (map[string]guildData.Event, error) {
 	return events, nil
 }
 
-func (d *Database) fetchAndInsertSlayerData(slayerEvent *guildData.SlayerEvent) error {
+func (d *Database) fetchSlayerData(slayerEvent *guildData.SlayerEvent) error {
 	// Create a context for the query
 	ctx := context.Background()
 
-	// Start a transaction
+	// Start a transaction for fetching slayer event data
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -529,7 +561,7 @@ func (d *Database) fetchAndInsertSlayerData(slayerEvent *guildData.SlayerEvent) 
 		}
 	}()
 
-	// Fetch slayer event data from the slayer_event_data table
+	// Fetch slayer event data from the SlayerEventData table
 	query := `
         SELECT id, user_id, fetch_date
         FROM SlayerEventData
@@ -541,7 +573,11 @@ func (d *Database) fetchAndInsertSlayerData(slayerEvent *guildData.SlayerEvent) 
 	}
 	defer rows.Close()
 
-	// Iterate through the slayer_event_data rows and populate the SlayerEvent structure
+	// Create a placeholder for slayer event data and collect user IDs
+	slayerEventDataMap := make(map[guildData.Snowflake][]*guildData.SlayerEventData)
+	userIdsSet := make(map[guildData.Snowflake]struct{})
+
+	// Iterate through the slayer_event_data rows and populate the SlayerEventData map
 	for rows.Next() {
 		var slayerEventData guildData.SlayerEventData
 		var userId guildData.Snowflake
@@ -555,54 +591,187 @@ func (d *Database) fetchAndInsertSlayerData(slayerEvent *guildData.SlayerEvent) 
 			return fmt.Errorf("failed to scan slayer_event_data row: %w", err)
 		}
 
-		// Fetch associated SlayerEventData for this slayerEventData.Id
-		bossQuery := `
-            SELECT id, slayer_boss_type_id, boss_kills_tier_0, boss_kills_tier_1, boss_kills_tier_2,
-                   boss_kills_tier_3, boss_kills_tier_4, boss_attempts_tier_0, boss_attempts_tier_1,
-                   boss_attempts_tier_2, boss_attempts_tier_3, boss_attempts_tier_4, xp
-            FROM BossData
-            WHERE slayer_event_data_id = $1
-        `
+		// Append slayerEventData to the user's slice in slayerEventDataMap
+		slayerEventDataMap[userId] = append(slayerEventDataMap[userId], &slayerEventData)
+		userIdsSet[userId] = struct{}{}
+	}
 
-		bossRows, err := tx.Query(ctx, bossQuery, slayerEventData.Id)
-		if err != nil {
-			return fmt.Errorf("failed to query slayer_boss_data for event_data_id %v: %w", slayerEventData.Id, err)
-		}
-		defer bossRows.Close()
-
-		slayerEventData.BossData = make(map[guildData.BossType]guildData.SlayerBossData)
-
-		for bossRows.Next() {
-			var bossData guildData.SlayerBossData
-			var bossType guildData.BossType
-			err := bossRows.Scan(
-				&bossData.Id,
-				&bossType,
-				&bossData.BossKillsTier0,
-				&bossData.BossKillsTier1,
-				&bossData.BossKillsTier2,
-				&bossData.BossKillsTier3,
-				&bossData.BossKillsTier4,
-				&bossData.BossAttemptsTier0,
-				&bossData.BossAttemptsTier1,
-				&bossData.BossAttemptsTier2,
-				&bossData.BossAttemptsTier3,
-				&bossData.BossAttemptsTier4,
-				&bossData.Xp,
-			)
-			if err != nil {
-				return fmt.Errorf("failed to scan slayer_boss_data row: %w", err)
-			}
-
-			slayerEventData.BossData[bossType] = bossData
-		}
-
-		slayerEvent.Data[userId] = slayerEventData
+	// Convert userIdsSet to a slice of userIds
+	userIds := make([]guildData.Snowflake, 0, len(userIdsSet))
+	for userId := range userIdsSet {
+		userIds = append(userIds, userId)
 	}
 
 	// Check for errors that occurred during iteration of the slayer_event_data rows
 	if rows.Err() != nil {
 		return fmt.Errorf("error occurred during iteration of slayer_event_data rows: %w", rows.Err())
+	}
+
+	// Close the transaction after fetching slayer event data
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction after fetching slayer_event_data: %w", err)
+	}
+
+	// Fetch all user data in a single query
+	if err := d.fetchSlayerUsers(ctx, userIds, slayerEvent); err != nil {
+		return fmt.Errorf("failed to fetch users: %w", err)
+	}
+
+	// Fetch all boss data and associate it with the corresponding slayer event data
+	if err := d.fetchBossData(ctx, slayerEventDataMap); err != nil {
+		return fmt.Errorf("failed to fetch boss data: %w", err)
+	}
+
+	// Add the populated slayerEventData back to the main SlayerEvent
+	for userId, slayerEventDataSlice := range slayerEventDataMap {
+		// Convert []*SlayerEventData to []SlayerEventData
+		slayerEventDataList := make([]guildData.SlayerEventData, len(slayerEventDataSlice))
+		for i, slayerEventDataPtr := range slayerEventDataSlice {
+			slayerEventDataList[i] = *slayerEventDataPtr
+		}
+		slayerEvent.Data[userId] = slayerEventDataList
+	}
+
+	return nil
+}
+
+// fetchSlayerUsers fetches user data for a list of user IDs and adds them to the slayerEvent
+func (d *Database) fetchSlayerUsers(ctx context.Context, userIds []guildData.Snowflake, slayerEvent *guildData.SlayerEvent) error {
+	if len(userIds) == 0 {
+		return nil
+	}
+
+	// Start a transaction for fetching user data
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction for user data: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+
+	usersQuery := `
+        SELECT discord_snowflake, discord_username, minecraft_username, minecraft_uuid
+        FROM Users
+        WHERE discord_snowflake = ANY($1)
+    `
+
+	userRows, err := tx.Query(ctx, usersQuery, userIds)
+	if err != nil {
+		return fmt.Errorf("failed to query user data: %w", err)
+	}
+	defer userRows.Close()
+
+	for userRows.Next() {
+		var user guildData.GuildUser
+		err := userRows.Scan(
+			&user.Snowflake,
+			&user.DiscordUsername,
+			&user.McUsername,
+			&user.McUUID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to scan user: %w", err)
+		}
+
+		slayerEvent.AddUser(&user)
+	}
+
+	// Check for errors in the user rows
+	if userRows.Err() != nil {
+		return fmt.Errorf("error occurred during fetching of users: %w", userRows.Err())
+	}
+
+	return nil
+}
+
+// fetchBossData fetches boss data and associates it with the corresponding slayer event data
+func (d *Database) fetchBossData(ctx context.Context, slayerEventDataMap map[guildData.Snowflake][]*guildData.SlayerEventData) error {
+	if len(slayerEventDataMap) == 0 {
+		return nil
+	}
+
+	// Collect all slayer_event_data IDs and map them to their corresponding SlayerEventData
+	slayerEventDataIds := make([]string, 0)
+	slayerEventDataIdToData := make(map[string]*guildData.SlayerEventData)
+	for _, slayerEventDataSlice := range slayerEventDataMap {
+		for _, slayerEventData := range slayerEventDataSlice {
+			slayerEventDataIds = append(slayerEventDataIds, slayerEventData.Id)
+			slayerEventDataIdToData[slayerEventData.Id] = slayerEventData
+		}
+	}
+
+	// Start a transaction for fetching boss data
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction for boss data: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
+		}
+	}()
+
+	bossQuery := `
+        SELECT slayer_event_data_id, id, slayer_boss_type_id, boss_kills_tier_0, boss_kills_tier_1, boss_kills_tier_2,
+               boss_kills_tier_3, boss_kills_tier_4, boss_attempts_tier_0, boss_attempts_tier_1,
+               boss_attempts_tier_2, boss_attempts_tier_3, boss_attempts_tier_4, xp
+        FROM BossData
+        WHERE slayer_event_data_id = ANY($1)
+    `
+
+	bossRows, err := tx.Query(ctx, bossQuery, slayerEventDataIds)
+	if err != nil {
+		return fmt.Errorf("failed to query boss data: %w", err)
+	}
+	defer bossRows.Close()
+
+	for bossRows.Next() {
+		var bossData guildData.SlayerBossData
+		var slayerEventDataId string
+		var bossType guildData.BossType
+		err := bossRows.Scan(
+			&slayerEventDataId,
+			&bossData.Id,
+			&bossType,
+			&bossData.BossKillsTier0,
+			&bossData.BossKillsTier1,
+			&bossData.BossKillsTier2,
+			&bossData.BossKillsTier3,
+			&bossData.BossKillsTier4,
+			&bossData.BossAttemptsTier0,
+			&bossData.BossAttemptsTier1,
+			&bossData.BossAttemptsTier2,
+			&bossData.BossAttemptsTier3,
+			&bossData.BossAttemptsTier4,
+			&bossData.Xp,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to scan boss data row: %w", err)
+		}
+
+		// Find the corresponding SlayerEventData
+		slayerEventData, exists := slayerEventDataIdToData[slayerEventDataId]
+		if !exists {
+			return fmt.Errorf("slayer event data not found for id %v", slayerEventDataId)
+		}
+
+		if slayerEventData.BossData == nil {
+			slayerEventData.BossData = make(map[guildData.BossType]guildData.SlayerBossData)
+		}
+
+		slayerEventData.BossData[bossType] = bossData
+	}
+
+	// Check for errors in the boss rows
+	if bossRows.Err() != nil {
+		return fmt.Errorf("error occurred during iteration of boss data rows: %w", bossRows.Err())
 	}
 
 	return nil

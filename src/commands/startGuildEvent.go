@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/ItsLukV/Guild-bot/src/db"
 	"github.com/ItsLukV/Guild-bot/src/guildData"
@@ -23,30 +24,64 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		if len(data.Options) > 0 && data.Options[0].Type == discordgo.ApplicationCommandOptionString {
 			eventID = string(data.Options[0].StringValue())
 		} else {
-			utils.RespondWithError(s, i, "Invalid or missing 'event-id' option.")
+			utils.RespondWithErrorPrivate(s, i, "Invalid or missing 'event-id' option.")
 			return
 		}
 
 		// Find the event in your bot's event map
 		event, exists := g.Events[eventID]
 		if !exists {
-			utils.RespondWithError(s, i, fmt.Sprintf("Event with ID %v not found.", eventID))
+			utils.RespondWithErrorPrivate(s, i, fmt.Sprintf("Event with ID %v not found.", eventID))
+			return
+		}
+
+		// Check if there are any users
+		if len(event.GetUsers()) == 0 {
+			utils.RespondWithErrorPrivate(s, i, "Event has no users.")
 			return
 		}
 
 		// Start the event
 		err := event.Start()
 		if err != nil {
-			utils.RespondWithError(s, i, fmt.Sprintf("Failed to start event: %v", err))
+			utils.RespondWithErrorPrivate(s, i, fmt.Sprintf("Failed to start event: %v", err))
 			return
 		}
-		db.GetInstance().SaveStartEventData(event)
+		db.GetInstance().SaveEventData(event)
+		db.GetInstance().UpdateEvent(event)
 
-		// Respond to the user confirming the event has started
+		// Create an embed to respond to the user
+		embed := &discordgo.MessageEmbed{
+			Title:       fmt.Sprintf("Event '%s' Started", event.GetDescription()),
+			Description: fmt.Sprintf("Event with ID: %s has successfully started.", event.GetId()),
+			Color:       0x00FF00, // Green color to indicate success
+			Fields: []*discordgo.MessageEmbedField{
+				{
+					Name:   "Event Type",
+					Value:  event.GetType().String(),
+					Inline: true,
+				},
+				{
+					Name:   "Users Joined",
+					Value:  fmt.Sprintf("%d", len(event.GetUsers())),
+					Inline: true,
+				},
+				{
+					Name:   "Users Joined",
+					Value:  fmt.Sprintf("Start Date: <t:%v:R>, End Date: <t:%v:R>", event.GetStartTime().Unix(), time.Now().UTC().AddDate(0, 0, event.GetDuration()/24)),
+					Inline: true,
+				},
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: "Event started successfully!",
+			},
+		}
+
+		// Respond with the embed
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("Event '%s' (ID: %d) has been started.", event.GetDescription(), event.GetId()),
+				Embeds: []*discordgo.MessageEmbed{embed},
 			},
 		})
 		if err != nil {

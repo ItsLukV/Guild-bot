@@ -54,6 +54,24 @@ var (
 					Description: "Add a description for the guild event",
 					Required:    false,
 				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "start-date",
+					Description: "Timestamp in format HH:mm DD-MM (e.g., 14:30 23-11)",
+					Required:    false,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "event-name",
+					Description: "Add a name for the guild event",
+					Required:    false,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionBoolean,
+					Name:        "hidden",
+					Description: "Shows the progression of the event, while the event is running",
+					Required:    false,
+				},
 			},
 		},
 		{

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/ItsLukV/Guild-bot/src/commands"
 	"github.com/ItsLukV/Guild-bot/src/db"
@@ -23,33 +24,46 @@ var s *discordgo.Session
 var data guildData.GuildBot
 
 func init() {
-	var err error
-	data, err = db.LoadGuildBot()
-	if err != nil {
-		log.Println("Failed to load guildBot from the Database")
-		log.Panicf("Database connection error: %v", err)
-	}
-}
-
-func init() { flag.Parse() }
-
-func init() {
+	flag.Parse()
 	var err error
 	s, err = discordgo.New("Bot " + discord_token)
 	if err != nil {
 		log.Fatalf("Invalid bot parameters: %v", err)
 	}
-}
+	// Loading data from db
+	data = guildData.GuildBot{
+		DiscordSession: s,
+	}
+	err = db.LoadGuildBot(&data)
+	if err != nil {
+		log.Println("Failed to load guildBot from the Database")
+		log.Panicf("Database connection error: %v", err)
+	}
 
-func init() {
+	// Handlers
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
-			h(&data, s, i)
+		switch i.Type {
+
+		case discordgo.InteractionApplicationCommand, discordgo.InteractionApplicationCommandAutocomplete:
+			if h, ok := commands.CommandHandlers[i.ApplicationCommandData().Name]; ok {
+				h(&data, s, i)
+			}
+		case discordgo.InteractionMessageComponent:
+			commands.HandleButtonInteraction(&data, s, i)
+		// case discordgo.InteractionModalSubmit:
+		// case discordgo.InteractionPing:
+		default:
+			log.Panicf("unexpected discordgo.InteractionType: %#v", i.Interaction.Type)
 		}
 	})
 }
 
 func main() {
+	// Create a ticker that ticks at the specified interval
+	ticker := time.NewTicker(3 * time.Hour)
+	data.StartEventUpdater(*ticker)
+	defer ticker.Stop()
+
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})

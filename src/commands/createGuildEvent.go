@@ -92,7 +92,7 @@ func createGuildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.
 	}
 
 	// Create the event based on the event type
-	event := guildData.NewGuildEvent(id, eventName, eventType, description, startDate, time.Now().UTC(), duration, false, hidden)
+	event := guildData.NewGuildEvent(id, eventName, eventType, description, startDate, time.Now().UTC(), duration, false, hidden, false)
 	// Add the event to the bot's events map
 	g.Events[event.GetId()] = event
 

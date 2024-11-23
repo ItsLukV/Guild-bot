@@ -39,6 +39,7 @@ type Event interface {
 	IsHidden() bool
 	sortByPoints() ([]Snowflake, []float64)
 	FetchData() error
+	HasEnded() bool
 }
 
 type EventType int
@@ -120,6 +121,7 @@ type GuildEvent struct {
 	LastFetch     time.Time
 	Users         map[Snowflake]*GuildUser
 	Hidden        bool
+	hasEnded      bool
 }
 
 func (g *GuildEvent) String() string {
@@ -246,6 +248,10 @@ func (s *GuildEvent) FetchData() error {
 	return nil
 }
 
+func (s *GuildEvent) HasEnded() bool {
+	return s.hasEnded
+}
+
 // -----------------------------------------------
 // ---------------- Custom events ----------------
 // -----------------------------------------------
@@ -352,6 +358,38 @@ func (slayerEvent *SlayerEvent) Start() error {
 		)
 	}
 	slayerEvent.IsActive = true
+	slayerEvent.hasEnded = true
+	return nil
+}
+
+func (slayerEvent *SlayerEvent) End() error {
+	log.Printf("Ended a event with %v players", len(slayerEvent.Users))
+	for snowflake, v := range slayerEvent.Users {
+		profile, err := utils.FetchActivePlayerProfile(v.McUUID)
+		if err != nil {
+			return fmt.Errorf("failed to get Active Player Profile: %w", err)
+		}
+
+		// Fetch the json data as a utils.SkyblockPlayerSlayerData struct
+		v, err := utils.FetchPlayerSlayerData(v.McUUID, profile)
+		if err != nil {
+			return fmt.Errorf("failed to fetch slayer data: %w", err)
+		}
+
+		// Translate the SkyblockPlayerSlayerData struct to
+		slayerData := convertUtilsSlayerDataToEventSlayerData(v)
+		id, err := gonanoid.New()
+		if err != nil {
+			log.Printf("Failed to create a Id for SlayerEventData eventId: %v", slayerEvent.Id)
+		}
+		slayerEvent.Data[snowflake] = append(slayerEvent.Data[snowflake], SlayerEventData{
+			Id:        id,
+			FetchDate: time.Now().UTC(),
+			BossData:  slayerData,
+		},
+		)
+	}
+	slayerEvent.IsActive = false
 	return nil
 }
 
@@ -440,6 +478,7 @@ func NewGuildEvent(
 	durationHours int,
 	isActive bool,
 	hidden bool,
+	hasEnded bool,
 ) Event {
 	baseEvent := GuildEvent{
 		Id:            id,
@@ -452,6 +491,7 @@ func NewGuildEvent(
 		LastFetch:     lastFetch,
 		Users:         make(map[Snowflake]*GuildUser),
 		Hidden:        hidden,
+		hasEnded:      hasEnded,
 	}
 
 	switch eventType {

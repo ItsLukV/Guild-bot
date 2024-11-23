@@ -62,6 +62,8 @@ func main() {
 	// Create a ticker that ticks at the specified interval
 	ticker := time.NewTicker(3 * time.Hour)
 	data.StartEventUpdater(*ticker)
+	endTicker := time.NewTicker(time.Minute)
+	data.EndEventUpdater(*endTicker)
 	defer ticker.Stop()
 
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {

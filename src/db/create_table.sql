@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS GuildEvent (
     last_fetch TIMESTAMP,
     duration_hours INT,
     is_active BOOLEAN,
-    hidden BOOLEAN
+    hidden BOOLEAN,
+    has_ended BOOLEAN,
 );
 
 CREATE TABLE IF NOT EXISTS SlayerEventData (

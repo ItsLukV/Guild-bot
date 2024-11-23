@@ -37,6 +37,33 @@ func (bot *GuildBot) StartEventUpdater(ticker time.Ticker) {
 	}()
 }
 
+func (bot *GuildBot) EndEventUpdater(ticker time.Ticker) {
+	// Use a goroutine to check the events periodically
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				log.Printf("Checking for end event at %v", time.Now().UTC())
+				bot.checkForEnd()
+			}
+		}
+	}()
+}
+
+func (bot *GuildBot) checkForEnd() {
+	if bot.EventSaver == nil {
+		log.Printf("EventSaver is not set; cannot update events")
+		return
+	}
+	for _, event := range bot.Events {
+
+		if !event.GetIsActive() || event.HasEnded() {
+			return
+		}
+		event.End()
+	}
+}
+
 // checkAndUpdateEvents iterates through all events and performs updates if needed
 func (bot *GuildBot) checkAndUpdateEvents() {
 	if bot.EventSaver == nil {

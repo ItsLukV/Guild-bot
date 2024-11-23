@@ -92,7 +92,7 @@ func startguildEvent(g *guildData.GuildBot, s *discordgo.Session, i *discordgo.I
 		// Collect event IDs of events that have not been started
 		var choices []*discordgo.ApplicationCommandOptionChoice
 		for _, event := range g.Events {
-			if !event.GetIsActive() {
+			if !event.GetIsActive() || !event.HasEnded() {
 				choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
 					Name:  fmt.Sprintf("Event %v: %s", event.GetId(), event.GetType()),
 					Value: event.GetId(),

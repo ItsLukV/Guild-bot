@@ -166,8 +166,8 @@ func (d *Database) SaveEvent(event guildData.Event) error {
 	defer cancel()                                                          // Ensure the context is cancelled
 
 	query := `
-        INSERT INTO GuildEvent (id, event_name, guild_type_id, description, start_time, last_fetch, duration_hours, is_active, hidden)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO GuildEvent (id, event_name, guild_type_id, description, start_time, last_fetch, duration_hours, is_active, hidden, has_ended)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `
 
 	_, err := d.pool.Exec(ctx, query,
@@ -180,6 +180,7 @@ func (d *Database) SaveEvent(event guildData.Event) error {
 		event.GetDuration(),
 		event.GetIsActive(),
 		event.IsHidden(),
+		event.HasEnded(),
 	)
 	if err != nil {
 		log.Printf("Failed to insert guild event %v: %v", event.GetId(), err)
@@ -205,6 +206,7 @@ func (d *Database) UpdateEvent(event guildData.Event) error {
             duration_hours = $7,
             is_active = $8,
             hidden = $9
+			has_ended = $10
         WHERE id = $1
     `
 
@@ -219,6 +221,7 @@ func (d *Database) UpdateEvent(event guildData.Event) error {
 		event.GetDuration(),    // $7: Duration in hours
 		event.GetIsActive(),    // $8: Is the event active?
 		event.IsHidden(),       // $9: Is the event hidden?
+		event.HasEnded(),       // $10: has the event ended
 	)
 	if err != nil {
 		log.Printf("Failed to update guild event %v: %v", event.GetId(), err)
@@ -498,7 +501,7 @@ func (d *Database) fetchEvents() (map[string]guildData.Event, error) {
 
 	// Define the query to fetch all guild events
 	query := `
-        SELECT id, event_name, guild_type_id, description, start_time, last_fetch, duration_hours, is_active, hidden
+        SELECT id, event_name, guild_type_id, description, start_time, last_fetch, duration_hours, is_active, hidden, has_ended
         FROM GuildEvent
     `
 
@@ -523,15 +526,16 @@ func (d *Database) fetchEvents() (map[string]guildData.Event, error) {
 		var duration_hours int
 		var is_active bool
 		var hidden bool
+		var has_ended bool
 
 		// Scan the row
-		err := rows.Scan(&id, &event_name, &guild_type_id, &description, &start_time, &last_fetch, &duration_hours, &is_active, &hidden)
+		err := rows.Scan(&id, &event_name, &guild_type_id, &description, &start_time, &last_fetch, &duration_hours, &is_active, &hidden, &has_ended)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
 		// Store the user in the map with the snowflake as the key
-		events[id] = guildData.NewGuildEvent(id, event_name, guildData.EventType(guild_type_id), description, start_time, last_fetch, duration_hours, is_active, hidden)
+		events[id] = guildData.NewGuildEvent(id, event_name, guildData.EventType(guild_type_id), description, start_time, last_fetch, duration_hours, is_active, hidden, has_ended)
 
 		log.Println(events[id].String())
 	}

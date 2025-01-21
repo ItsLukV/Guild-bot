@@ -95,8 +95,8 @@ func buildLargeUsersString(users []model.User) string {
 		output += fmt.Sprintf(
 			"**<@%s>**\n"+
 				"**Minecraft username:** `%s`\n"+
-				"**Fetching Data:** `%t`\n"+
-				user.Snowflake, username, user.FetchData,
+				"**Fetching Data:** `%t`\n\n",
+			user.Snowflake, username, user.FetchData,
 		)
 	}
 

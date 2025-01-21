@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 	"os/signal"
-	"flag"
 	"time"
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
@@ -45,6 +45,7 @@ func main() {
 
 	// Register commands and handlers
 	registeredCommands := discordSvc.RegisterCommands()
+	discordSvc.AddCommandHandlers()
 
 	// Wait for a signal to gracefully shutdown the bot
 	stop := make(chan os.Signal, 1)

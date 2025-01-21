@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/ItsLukV/Guild-bot/internal/handlers/commands"
 	"github.com/bwmarrin/discordgo"
+	"github.com/ItsLukV/Guild-bot/internal/handlers/commands"
 )
 
 var (
@@ -11,9 +11,14 @@ var (
 			Name:        "fetch_users",
 			Description: "Fetches all users",
 		},
+		{
+			Name: 	  	 "fetch_guil_events",
+			Description: "Fetches all guild events",
+		},
 	}
 
 	CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"fetch_users": commands.FetchUsersCommand,
+		"fetch_guild_events": commands.FetchGuildEventsCommand,
 	}
 )

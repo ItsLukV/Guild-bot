@@ -27,15 +27,6 @@ func New(token, apiBaseURL, apiKey string) *Service {
 		apiKey:     apiKey,
 	}
 
-	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		switch i.Type {
-		case discordgo.InteractionApplicationCommand, discordgo.InteractionApplicationCommandAutocomplete:
-			if handler, ok := handlers.CommandHandlers[i.ApplicationCommandData().Name]; ok {
-				handler(s, i)
-			}
-		}
-	})
-
 	return service
 }
 

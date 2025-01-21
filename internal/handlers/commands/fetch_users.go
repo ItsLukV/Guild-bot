@@ -7,23 +7,20 @@ import (
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
 	"github.com/ItsLukV/Guild-bot/internal/model"
-	"github.com/ItsLukV/Guild-bot/internal/restclient"
+	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
 func FetchUsersCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Build the target URL
-	url := fmt.Sprintf("%s/api/users", config.GlobalConfig.ApiBaseURL)
-	log.Println("Fetching users from:", url)
 	// Fetch the user data
-	data, err := restclient.FetchApi[model.UsersResponse](url)
+	users, err := model.FetchUsers(config.GlobalConfig.ApiBaseURL)
 	if err != nil {
-		log.Println("Error fetching data:", err)
+		log.Println("Error fetching users:", err)
 		// Respond with an ephemeral error message
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "Failed to fetch data.",
+				Content: "Failed to fetch users.",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
@@ -31,7 +28,7 @@ func FetchUsersCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 
 	// Handle the case of no users found
-	if len(data.Users) == 0 {
+	if len(users) == 0 {
 		_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -42,42 +39,68 @@ func FetchUsersCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	// Create embed fields: one field per user
-	fields := make([]*discordgo.MessageEmbedField, 0, len(data.Users))
-	for _, user := range data.Users {
-		value := fmt.Sprintf(
-			"**Active Profile UUID:** `%s`\n**Fetch Data:** `%t`",
-			user.ActiveProfileUUID,
-			user.FetchData,
-		)
+	// Build a large string describing all users
+	fullText := buildLargeUsersString(users)
 
-		fields = append(fields, &discordgo.MessageEmbedField{
-			Name:  fmt.Sprintf("User ID: %s", user.ID),
-			Value: value,
-		})
+	// Chunk into ~1000-char pages
+	pages := utils.ChunkString(fullText, 1000)
+	if len(pages) == 0 {
+		pages = []string{"No data available."}
 	}
 
-	// Build the embed
-	embed := &discordgo.MessageEmbed{
-		Title:       "Fetched Users",
-		Description: fmt.Sprintf("We found **%d** user(s):", len(data.Users)),
-		Color:       0x1F8B4C, // A greenish color; customize as desired
-		Fields:      fields,
-		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("Fetched from %s", config.GlobalConfig.ApiBaseURL),
-		},
-		Timestamp: time.Now().UTC().Format(time.RFC3339), // Adds a timestamp
+	// Create a unique pagination ID
+	paginationID := utils.BuildPaginationID()
+
+	// Create and store the PaginationData
+	utils.PaginationStore[paginationID] = &utils.PaginationData{
+		Pages:     pages,
+		PageIndex: 0,
+		AuthorID:  i.Member.User.ID,
+		Title:     "Fetched Users",
+		Footer:    fmt.Sprintf("Fetched from %s", config.GlobalConfig.ApiBaseURL),
+		CreatedAt: time.Now(),
 	}
 
-	// Respond with the embed in the channel
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	// Create an embed for page 0
+	embed := utils.MakePaginationEmbed(utils.PaginationStore[paginationID])
+
+	// Build pagination buttons
+	components := utils.MakePaginationComponents(paginationID, 0, len(pages))
+
+	// Send the initial response
+	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{embed},
-			Flags:  discordgo.MessageFlagsEphemeral,
+			Embeds:     []*discordgo.MessageEmbed{embed},
+			Components: components,
 		},
-	})
-	if err != nil {
-		log.Println("Failed to respond with user embed:", err)
+	}); err != nil {
+		log.Println("Failed to respond with paginated users:", err)
 	}
+}
+
+func buildLargeUsersString(users []model.User) string {
+	var output string
+
+	output += fmt.Sprintf("We found **%d** user(s):\n\n", len(users))
+
+	for _, user := range users {
+		// Get the username for this user
+		username, err := model.FetchUsername(user.ID)
+		if err != nil {
+			log.Println("Error fetching username:", err)
+			username = "Unknown"
+		}
+
+		output += fmt.Sprintf(
+			"**<@%s>**\n"+
+				"**Minecraft username:** `%s`\n"+
+				"**Active Profile UUID:** `%s`\n"+
+				"**Fetching Data:** `%t`\n"+
+				"**Snowflake:** `%s`\n\n",
+			user.Snowflake, username, user.ActiveProfileUUID, user.FetchData, user.Snowflake,
+		)
+	}
+
+	return output
 }

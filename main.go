@@ -5,14 +5,12 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
 	"github.com/ItsLukV/Guild-bot/internal/discord"
 	"github.com/joho/godotenv"
 )
 
-var cfg *config.Config
 var RemoveCommands = flag.Bool("rmcmd", true, "Remove all commands after shutdown or not")
 
 func init() {
@@ -27,25 +25,22 @@ func main() {
 	} else {
 		log.Println(".env file loaded successfully")
 	}
-
-	// Load configuration into global variable
-	cfg = config.LoadConfig()
+	// Load the configuration
+	config.LoadConfig()
 
 	// Initialize Discord service
-	discordSvc := discord.New(cfg.BotToken, cfg.ApiBaseURL, cfg.ApiKey)
+	discordSvc := discord.New(config.GlobalConfig.BotToken)
 
-	// Example: create a ticker for some periodic task
-	ticker := time.NewTicker(3 * time.Hour)
-	defer ticker.Stop()
+	// Add command handlers
+	discordSvc.AddCommandHandlers()
 
 	// Start the bot
 	if err := discordSvc.Start(); err != nil {
 		log.Fatalf("Cannot open the session: %v", err)
 	}
 
-	// Register commands and handlers
+	// Register commands
 	registeredCommands := discordSvc.RegisterCommands()
-	discordSvc.AddCommandHandlers()
 
 	// Wait for a signal to gracefully shutdown the bot
 	stop := make(chan os.Signal, 1)

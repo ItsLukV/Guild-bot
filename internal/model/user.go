@@ -9,8 +9,8 @@ import (
 type User struct {
 	ID                string `json:"id"`
 	ActiveProfileUUID string `json:"active_profile_UUID"`
-	FetchData         bool   `json:"fetch_data"`
 	Snowflake         string `json:"discord_snowflake"`
+	FetchData         bool   `json:"fetch_data"`
 }
 
 type UsersResponse struct {
@@ -55,6 +55,6 @@ func FetchUsers(apiBaseURL string) ([]User, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&usersResponse); err != nil {
 		return nil, err
 	}
-
+	
 	return usersResponse.Users, nil
 }

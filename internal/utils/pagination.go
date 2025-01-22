@@ -2,7 +2,8 @@ package utils
 
 import (
 	"fmt"
-	"strings"
+	"log"
+	"math"
 	"time"
 
 	"github.com/bwmarrin/discordgo"

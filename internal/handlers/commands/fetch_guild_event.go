@@ -38,26 +38,28 @@ func FetchGuildEventCommand(s *discordgo.Session, i *discordgo.InteractionCreate
 		return
 	}
 
-	// Build a large string for the event
-	fullText := buildLargeEventString(guildEvent)
-
-	// Chunk into ~1000-char pages
-	pages := utils.ChunkString(fullText, 1000)
-	if len(pages) == 0 {
-		pages = []string{"No data available."}
-	}
-
 	// Create a unique pagination ID
 	paginationID := utils.BuildPaginationID()
 
+	fields := make([]utils.Section, 0)
+	fields = append(fields, guildEvent)
+
+	for _, data := range guildEvent.EventData {
+		data.SetInLine(true)
+		fields = append(fields, data)
+	}
+
 	// Create and store the PaginationData
-	utils.PaginationStore[paginationID] = &utils.PaginationData{
-		Pages:     pages,
-		PageIndex: 0,
-		AuthorID:  i.Member.User.ID,
-		Title:     "Fetched Guild Event",
-		Footer:    fmt.Sprintf("Fetched from %s", config.GlobalConfig.ApiBaseURL),
-		CreatedAt: time.Now(),
+	data := &utils.PaginationData{
+		Fields:      fields,
+		PageIndex:   0,
+		Description: "",
+		AuthorID:    i.Member.User.ID,
+		Title:       "Fetched Guild Event",
+		Footer:      fmt.Sprintf("Fetched from %s", config.GlobalConfig.ApiBaseURL),
+		Color:       0x606060,
+		CreatedAt:   time.Now(),
+		PageSize:    5,
 	}
 	utils.PaginationStore[paginationID] = data
 

@@ -18,6 +18,7 @@ type GuildEvent struct {
 	Type      GuildEventType `json:"type"`
 	IsHidden  bool           `json:"is_hidden"`
 	EventData []EventData    `json:"event_data"`
+	IsInLine  bool
 }
 
 type GuildEventType string

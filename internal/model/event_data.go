@@ -8,6 +8,7 @@ import (
 )
 
 type EventData interface {
+	utils.Section
 	GetUser() string
 }
 
@@ -22,6 +23,7 @@ type DianaData struct {
 	MinosInquisitor int       `json:"minos_inquisitor"`
 	Minotaur        int       `json:"minotaur"`
 	SiameseLynx     int       `json:"siamese_lynx"`
+	IsInLine        bool
 }
 
 func (d *DianaData) GetUser() string {
@@ -81,7 +83,7 @@ type DungeonsData struct {
 	IsInLine          bool
 }
 
-func (d DungeonsData) GetUser() string {
+func (d *DungeonsData) GetUser() string {
 	return d.ID
 }
 

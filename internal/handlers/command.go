@@ -29,15 +29,30 @@ var (
 				},
 			},
 		},
+		{
+			Name:        "fetch_user",
+			Description: "Fetches a specific user and their event data",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:         discordgo.ApplicationCommandOptionString,
+					Name:         "user_name",
+					Description:  "The ID of the user to fetch",
+					Required:     true,
+					Autocomplete: true,
+				},
+			},
+		},
 	}
 
 	CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"fetch_users":        commands.FetchUsersCommand,
 		"fetch_guild_events": commands.FetchGuildEventsCommand,
 		"fetch_guild_event":  commands.FetchGuildEventCommand,
+		"fetch_user":         commands.FetchUserCommand,
 	}
 
-	AutocompleteHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	AutocompleteHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"fetch_guild_event": autocompletions.GuildEventAutocomplete,
+		"fetch_user":        autocompletions.UserAutocomplete,
 	}
 )

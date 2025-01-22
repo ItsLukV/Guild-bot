@@ -38,42 +38,27 @@ func FetchGuildEventsCommand(s *discordgo.Session, i *discordgo.InteractionCreat
 		return
 	}
 
-	// Build one large string for all events
-	fullText := buildAllEventsString(events)
-
-	// Chunk into ~1000-char pages
-	pages := utils.ChunkString(fullText, 1000)
-	if len(pages) == 0 {
-		pages = []string{"No data available."}
+	var fields []utils.Section
+	for i := range events {
+		fields = append(fields, &events[i])
 	}
 
 	// Create a unique pagination ID
 	paginationID := utils.BuildPaginationID()
 
 	// Create and store the PaginationData
-	utils.PaginationStore[paginationID] = &utils.PaginationData{
-		Pages:     pages,
+	data := &utils.PaginationData{
+		Fields:    fields,
 		PageIndex: 0,
 		AuthorID:  i.Member.User.ID,
 		Title:     "Fetched Guild Events",
 		Footer:    fmt.Sprintf("Fetched from %s", config.GlobalConfig.ApiBaseURL),
 		CreatedAt: time.Now(),
+		PageSize:  5,
 	}
+	utils.PaginationStore[paginationID] = data
 
-	// Create the initial embed
-	embed := utils.MakePaginationEmbed(utils.PaginationStore[paginationID])
-
-	// Create the initial components
-	comps := utils.MakePaginationComponents(paginationID, 0, len(pages))
-
-	// Respond with the initial embed and components
-	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds:     []*discordgo.MessageEmbed{embed},
-			Components: comps,
-		},
-	}); err != nil {
+	if err := utils.SendInitialPaginationResponse(s, i, paginationID, data); err != nil {
 		log.Println("Failed to respond with guild events embed:", err)
 	}
 }

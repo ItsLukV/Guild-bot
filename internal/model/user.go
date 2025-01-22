@@ -3,14 +3,55 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+
+	"github.com/ItsLukV/Guild-bot/internal/config"
 )
 
 type User struct {
-	ID                string `json:"id"`
+	Id                string `json:"id"`
 	ActiveProfileUUID string `json:"active_profile_UUID"`
 	Snowflake         string `json:"discord_snowflake"`
 	FetchData         bool   `json:"fetch_data"`
+	IsInline          bool
+}
+
+func (u User) GetSectionName() string {
+	return "**User data**"
+}
+
+func (u User) GetSectionValue() string {
+	var output string
+	username, err := FetchUsername(u.Id)
+
+	if err != nil {
+		log.Println("Error fetching username:", err)
+		username = "Unknown"
+	}
+
+	output += fmt.Sprintf(
+		"**Users name: <@%s>**\n"+
+			"**Minecraft username:** `%s`\n"+
+			"**Fetching Data:** `%t`\n\n",
+		u.Snowflake, username, u.FetchData,
+	)
+
+	return output
+}
+
+func (u User) GetSectionInline() bool {
+	return false
+}
+
+func (u *User) SetInLine(inline bool) {
+	u.IsInline = inline
+}
+
+type UserWithEventData struct {
+	DianaData    DianaData    `json:"diana_data"`
+	DungeonsData DungeonsData `json:"dungeons_data"`
+	User         User         `json:"user"`
 }
 
 type UsersResponse struct {
@@ -39,8 +80,8 @@ func FetchUsername(uuid string) (string, error) {
 	return result.Name, nil
 }
 
-func FetchUsers(apiBaseURL string) ([]User, error) {
-	url := fmt.Sprintf("%s/api/users", apiBaseURL)
+func FetchUsers() ([]User, error) {
+	url := fmt.Sprintf("%s/api/users", config.GlobalConfig.ApiBaseURL)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -55,6 +96,27 @@ func FetchUsers(apiBaseURL string) ([]User, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&usersResponse); err != nil {
 		return nil, err
 	}
-	
+
 	return usersResponse.Users, nil
+}
+
+func FetchUser(userID string) (*UserWithEventData, error) {
+	url := fmt.Sprintf("%s/api/user?id=%s", config.GlobalConfig.ApiBaseURL, userID)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch user data, status code: %d", resp.StatusCode)
+	}
+
+	var fud UserWithEventData
+	if err := json.NewDecoder(resp.Body).Decode(&fud); err != nil {
+		return nil, err
+	}
+
+	return &fud, nil
 }

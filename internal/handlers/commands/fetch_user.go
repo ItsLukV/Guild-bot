@@ -2,16 +2,16 @@ package commands
 
 import (
 	"fmt"
-	"log"
-	"time"
-
 	"github.com/ItsLukV/Guild-bot/internal/config"
 	"github.com/ItsLukV/Guild-bot/internal/model"
 	"github.com/ItsLukV/Guild-bot/internal/utils"
+	"log"
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 )
 
-func FetchUserCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func FetchUserCommand(s *discordgo.Session, i *discordgo.InteractionCreate, pm *utils.PaginatedSessions) {
 	// Parse the command options
 	userID := i.ApplicationCommandData().Options[0].StringValue()
 
@@ -65,7 +65,7 @@ func FetchUserCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		CreatedAt: time.Now(),
 		PageSize:  5,
 	}
-	utils.PaginationStore[paginationID] = data
+	pm.Put(paginationID, data)
 
 	if err := utils.SendInitialPaginationResponse(s, i, paginationID, data); err != nil {
 		log.Println("Error sending initial pagination response:", err)

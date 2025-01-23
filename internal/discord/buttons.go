@@ -8,7 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func handlePaginationButton(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func handlePaginationButton(s *discordgo.Session, i *discordgo.InteractionCreate, pm *utils.PaginatedSessions) {
 	data := i.MessageComponentData()
 	customID := data.CustomID // e.g. "page_prev_<uuid>" or "page_next_<uuid>"
 
@@ -21,8 +21,9 @@ func handlePaginationButton(s *discordgo.Session, i *discordgo.InteractionCreate
 	paginationID := parts[2]
 
 	// Look up pagination data
-	pd, ok := utils.PaginationStore[paginationID]
+	pd, ok := pm.Get(paginationID)
 	if !ok {
+		// Not found or expired
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -44,7 +45,7 @@ func handlePaginationButton(s *discordgo.Session, i *discordgo.InteractionCreate
 		return
 	}
 
-	// Update page
+	// Update pageIndex
 	if direction == "prev" && pd.PageIndex > 0 {
 		pd.PageIndex--
 	} else if direction == "next" && pd.PageIndex < pd.GetPageAmount()-1 {
@@ -53,8 +54,6 @@ func handlePaginationButton(s *discordgo.Session, i *discordgo.InteractionCreate
 
 	// Rebuild the embed
 	embed := utils.MakePaginationEmbed(pd)
-
-	// Rebuild the components
 	comps := utils.MakePaginationComponents(paginationID, pd.PageIndex, pd.GetPageAmount())
 
 	// Use InteractionResponseUpdateMessage to edit in place

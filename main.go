@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
+	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
 	"github.com/ItsLukV/Guild-bot/internal/discord"
@@ -28,8 +30,11 @@ func main() {
 	// Load the configuration
 	config.LoadConfig()
 
+	// Create pagination manager with a chosen TTL, e.g. 5 minutes.
+	paginationManager := utils.NewPaginatedSessions(5 * time.Minute)
+
 	// Initialize Discord service
-	discordSvc := discord.New(config.GlobalConfig.BotToken)
+	discordSvc := discord.New(config.GlobalConfig.BotToken, paginationManager)
 
 	// Add command handlers
 	discordSvc.AddCommandHandlers()
@@ -42,7 +47,7 @@ func main() {
 	// Register commands
 	registeredCommands := discordSvc.RegisterCommands()
 
-	// Wait for a signal to gracefully shutdown the bot
+	// Wait for a signal to gracefully shut down the bot
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	log.Println("Press Ctrl+C to exit")
@@ -52,6 +57,7 @@ func main() {
 		log.Println("Removing commands...")
 		discordSvc.RemoveCommands(registeredCommands)
 	}
-
+	// When shutting down gracefully, stop the pagination manager’s GC loop
+	paginationManager.Stop()
 	log.Println("Gracefully shutting down.")
 }

@@ -2,16 +2,16 @@ package commands
 
 import (
 	"fmt"
+	"github.com/ItsLukV/Guild-bot/internal/model"
 	"log"
 	"time"
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
-	"github.com/ItsLukV/Guild-bot/internal/model"
 	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
-func FetchUsersCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func FetchUsersCommand(s *discordgo.Session, i *discordgo.InteractionCreate, pm *utils.PaginatedSessions) {
 	// Fetch the user data
 	users, err := model.FetchUsers()
 	if err != nil {
@@ -57,33 +57,9 @@ func FetchUsersCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		CreatedAt: time.Now(),
 		PageSize:  5,
 	}
-	utils.PaginationStore[paginationID] = data
+	pm.Put(paginationID, data)
 
 	if err := utils.SendInitialPaginationResponse(s, i, paginationID, data); err != nil {
 		log.Println("Failed to respond with paginated users:", err)
 	}
-}
-
-func buildLargeUsersString(users []model.User) string {
-	var output string
-
-	output += fmt.Sprintf("We found **%d** user(s):\n\n", len(users))
-
-	for _, user := range users {
-		// Get the username for this user
-		username, err := model.FetchUsername(user.Id)
-		if err != nil {
-			log.Println("Error fetching username:", err)
-			username = "Unknown"
-		}
-
-		output += fmt.Sprintf(
-			"**<@%s>**\n"+
-				"**Minecraft username:** `%s`\n"+
-				"**Fetching Data:** `%t`\n\n",
-			user.Snowflake, username, user.FetchData,
-		)
-	}
-
-	return output
 }

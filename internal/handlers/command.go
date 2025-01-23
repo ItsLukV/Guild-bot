@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/ItsLukV/Guild-bot/internal/handlers/autocompletions"
 	"github.com/ItsLukV/Guild-bot/internal/handlers/commands"
+	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -44,7 +45,7 @@ var (
 		},
 	}
 
-	CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+	CommandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, pm *utils.PaginatedSessions){
 		"fetch_users":        commands.FetchUsersCommand,
 		"fetch_guild_events": commands.FetchGuildEventsCommand,
 		"fetch_guild_event":  commands.FetchGuildEventCommand,

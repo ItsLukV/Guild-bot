@@ -2,16 +2,16 @@ package commands
 
 import (
 	"fmt"
+	"github.com/ItsLukV/Guild-bot/internal/model"
 	"log"
 	"time"
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
-	"github.com/ItsLukV/Guild-bot/internal/model"
 	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
-func FetchGuildEventsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func FetchGuildEventsCommand(s *discordgo.Session, i *discordgo.InteractionCreate, pm *utils.PaginatedSessions) {
 	// Fetch the guild events
 	events, err := model.FetchGuildEvents()
 	if err != nil {
@@ -56,45 +56,9 @@ func FetchGuildEventsCommand(s *discordgo.Session, i *discordgo.InteractionCreat
 		CreatedAt: time.Now(),
 		PageSize:  5,
 	}
-	utils.PaginationStore[paginationID] = data
+	pm.Put(paginationID, data)
 
 	if err := utils.SendInitialPaginationResponse(s, i, paginationID, data); err != nil {
 		log.Println("Failed to respond with guild events embed:", err)
 	}
-}
-
-// buildAllEventsString returns a large string describing each event
-func buildAllEventsString(events []model.GuildEvent) string {
-	var output string
-
-	output += fmt.Sprintf("We found **%d** event(s):\n\n", len(events))
-
-	for idx, event := range events {
-		// Convert user IDs to names
-		userNames, err := event.GetUserNames()
-		if err != nil {
-			log.Printf("Error getting user names: %v\n", err)
-			userNames = event.Users
-		}
-
-		eventText := fmt.Sprintf(
-			"[%d] Event ID: %s\n"+
-				"Users: %v\n"+
-				"Start Time: %s\n"+
-				"Duration: %dh\n"+
-				"Type: %s\n"+
-				"Hidden: %t\n\n",
-			idx+1,
-			event.Id,
-			userNames,
-			event.StartTime.Format(time.RFC1123),
-			event.Duration,
-			event.Type,
-			event.IsHidden,
-		)
-
-		output += eventText
-	}
-
-	return output
 }

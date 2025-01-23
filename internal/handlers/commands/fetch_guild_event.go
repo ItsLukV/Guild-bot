@@ -2,16 +2,16 @@ package commands
 
 import (
 	"fmt"
+	"github.com/ItsLukV/Guild-bot/internal/model"
 	"log"
 	"time"
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
-	"github.com/ItsLukV/Guild-bot/internal/model"
 	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
-func FetchGuildEventCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func FetchGuildEventCommand(s *discordgo.Session, i *discordgo.InteractionCreate, pm *utils.PaginatedSessions) {
 	eventID := i.ApplicationCommandData().Options[0].StringValue()
 
 	guildEvent, err := model.FetchGuildEvent(eventID)
@@ -45,7 +45,7 @@ func FetchGuildEventCommand(s *discordgo.Session, i *discordgo.InteractionCreate
 	fields = append(fields, guildEvent)
 
 	for _, data := range guildEvent.EventData {
-		data.SetInLine(true)
+		//data.SetInLine(true)
 		fields = append(fields, data)
 	}
 
@@ -61,7 +61,7 @@ func FetchGuildEventCommand(s *discordgo.Session, i *discordgo.InteractionCreate
 		CreatedAt:   time.Now(),
 		PageSize:    5,
 	}
-	utils.PaginationStore[paginationID] = data
+	pm.Put(paginationID, data)
 
 	if err := utils.SendInitialPaginationResponse(s, i, paginationID, data); err != nil {
 		log.Println("Failed to respond with guild event embed:", err)

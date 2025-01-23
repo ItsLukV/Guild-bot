@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"log"
 
 	"github.com/ItsLukV/Guild-bot/internal/config"
@@ -10,29 +11,30 @@ import (
 
 type Service struct {
 	session            *discordgo.Session
+	paginationManager  *utils.PaginatedSessions
 	registeredCommands []*discordgo.ApplicationCommand
 }
 
-func New(token string) *Service {
+func New(token string, pm *utils.PaginatedSessions) *Service {
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
 		log.Fatal("error creating Discord session,", err)
 	}
 
-	service := &Service{
-		session: session,
+	return &Service{
+		session:           session,
+		paginationManager: pm,
 	}
-
-	return service
 }
 
+// AddCommandHandlers is where we attach all Discord event handlers.
 func (s *Service) AddCommandHandlers() {
 	s.session.AddHandler(func(sess *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 
 		case discordgo.InteractionApplicationCommand:
 			if h, ok := handlers.CommandHandlers[i.ApplicationCommandData().Name]; ok {
-				h(sess, i)
+				h(sess, i, s.paginationManager)
 			}
 
 		case discordgo.InteractionApplicationCommandAutocomplete:
@@ -41,7 +43,7 @@ func (s *Service) AddCommandHandlers() {
 			}
 
 		case discordgo.InteractionMessageComponent:
-			handlePaginationButton(sess, i)
+			handlePaginationButton(sess, i, s.paginationManager)
 
 		default:
 			log.Panicf("unexpected discordgo.InteractionType: %#v", i.Interaction.Type)

@@ -1,10 +1,10 @@
 package autocompletions
 
 import (
+	"github.com/ItsLukV/Guild-bot/internal/model"
 	"log"
 	"strings"
 
-	"github.com/ItsLukV/Guild-bot/internal/model"
 	"github.com/bwmarrin/discordgo"
 )
 

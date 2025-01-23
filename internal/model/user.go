@@ -1,12 +1,8 @@
 package model
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-
-	"github.com/ItsLukV/Guild-bot/internal/config"
 )
 
 type User struct {
@@ -56,67 +52,4 @@ type UserWithEventData struct {
 
 type UsersResponse struct {
 	Users []User `json:"users"`
-}
-
-func FetchUsername(uuid string) (string, error) {
-	url := fmt.Sprintf("https://api.minecraftservices.com/minecraft/profile/lookup/%s", uuid)
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch username, status code: %d", resp.StatusCode)
-	}
-
-	var result struct {
-		Name string `json:"name"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-
-	return result.Name, nil
-}
-
-func FetchUsers() ([]User, error) {
-	url := fmt.Sprintf("%s/api/users", config.GlobalConfig.ApiBaseURL)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch users, status code: %d", resp.StatusCode)
-	}
-
-	var usersResponse UsersResponse
-	if err := json.NewDecoder(resp.Body).Decode(&usersResponse); err != nil {
-		return nil, err
-	}
-
-	return usersResponse.Users, nil
-}
-
-func FetchUser(userID string) (*UserWithEventData, error) {
-	url := fmt.Sprintf("%s/api/user?id=%s", config.GlobalConfig.ApiBaseURL, userID)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch user data, status code: %d", resp.StatusCode)
-	}
-
-	var fud UserWithEventData
-	if err := json.NewDecoder(resp.Body).Decode(&fud); err != nil {
-		return nil, err
-	}
-
-	return &fud, nil
 }

@@ -45,7 +45,7 @@ func FetchGuildEventCommand(s *discordgo.Session, i *discordgo.InteractionCreate
 	fields = append(fields, guildEvent)
 
 	for _, data := range guildEvent.EventData {
-		//data.SetInLine(true)
+		// data.SetInLine(true)
 		fields = append(fields, data)
 	}
 

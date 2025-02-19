@@ -2,14 +2,13 @@ package model
 
 import (
 	"fmt"
-	"github.com/ItsLukV/Guild-bot/internal/utils"
 	"sort"
 	"time"
 )
 
 type EventData interface {
-	utils.Section
 	GetUser() string
+	FormatToDiscordDisplay() string
 }
 
 type DianaData struct {
@@ -23,34 +22,32 @@ type DianaData struct {
 	MinosInquisitor int       `json:"minos_inquisitor"`
 	Minotaur        int       `json:"minotaur"`
 	SiameseLynx     int       `json:"siamese_lynx"`
-	IsInLine        bool
 }
 
-func (d *DianaData) GetUser() string {
+func (d DianaData) GetUser() string {
 	return d.Id
 }
 
-func (d *DianaData) GetSectionName() string {
-	return "**Diana data**"
-}
-
-func (d *DianaData) GetSectionValue() string {
+func (d DianaData) FormatToDiscordDisplay() string {
 	userName, err := FetchUsername(d.Id)
 	if err != nil {
 		userName = d.Id
 	}
 
+	// Example using Discord markdown + emojis to highlight important stats
 	return fmt.Sprintf(
-		"Data for: **%s**\n"+
-			"> :hourglass: **Fetched**: `%s`\n"+
-			"> :coin: **BurrowsTreasure**: `%d`\n"+
-			"> :crossed_swords: **BurrowsCombat**: `%d`\n"+
-			"> :sparkles: **GaiaConstruct**: `%d`\n"+
-			"> :dragon: **MinosChampion**: `%d`\n"+
-			"> :bow_and_arrow: **MinosHunter**: `%d`\n"+
-			"> :dragon_face: **MinosInquisitor**: `%d`\n"+
-			"> :cow2: **Minotaur**: `%d`\n"+
-			"> :cat2: **SiameseLynx**: `%d`\n\n",
+		`**%s** *(Diana)*
+		> **Fetched**: %s
+		> :coin: **BurrowsTreasure**:  %d
+		> :crossed_swords: **BurrowsCombat**:   %d
+		> :sparkles: **GaiaConstruct**:   %d
+		> :dragon: **MinosChampion**:     %d
+		> :bow_and_arrow: **MinosHunter**:       %d
+		> :dragon_face: **MinosInquisitor**:    %d
+		> :cow2: **Minotaur**:           %d
+		> :cat2: **SiameseLynx**:        %d
+
+		`,
 		userName,
 		d.FetchTime.Format(time.RFC1123),
 		d.BurrowsTreasure,
@@ -64,14 +61,6 @@ func (d *DianaData) GetSectionValue() string {
 	)
 }
 
-func (d *DianaData) GetSectionInline() bool {
-	return d.IsInLine
-}
-
-func (d *DianaData) SetInLine(IsInLine bool) {
-	d.IsInLine = IsInLine
-}
-
 type DungeonsData struct {
 	ID                string             `json:"id"`
 	FetchTime         time.Time          `json:"fetch_time"`
@@ -80,18 +69,13 @@ type DungeonsData struct {
 	MasterCompletions map[int]int        `json:"master_completions"`
 	ClassXP           map[string]float64 `json:"class_xp"`
 	Secrets           int                `json:"secrets"`
-	IsInLine          bool
 }
 
-func (d *DungeonsData) GetUser() string {
+func (d DungeonsData) GetUser() string {
 	return d.ID
 }
 
-func (d *DungeonsData) GetSectionName() string {
-	return "**Dungeons data**"
-}
-
-func (d *DungeonsData) GetSectionValue() string {
+func (d DungeonsData) FormatToDiscordDisplay() string {
 	userName, err := FetchUsername(d.ID)
 	if err != nil {
 		userName = d.ID
@@ -102,17 +86,23 @@ func (d *DungeonsData) GetSectionValue() string {
 	masterCompletionsText := formatCompletions(d.MasterCompletions)
 	classXPText := formatClassXP(d.ClassXP)
 
+	// Use Discord Markdown for a neat output
 	return fmt.Sprintf(
-		"Fetched for: **%s**\n"+
-			"> :hourglass: **Fetched**: `%s`\n"+
-			"> :star: **Experience**:  `%.2f`\n"+
-			"> :key:  **Secrets**:     `%d`\n\n"+
-			"> :crossed_swords: **Completions**:\n"+
-			"%s\n\n"+
-			"> :dragon_face: **MasterCompletions**:\n"+
-			"%s\n\n"+
-			"> :book: **ClassXP**:\n"+
-			"%s\n\n",
+		`**%s** *(Dungeons)*
+		> **Fetched**: %s
+		> :star: **Experience**:  %.2f
+		> :key:  **Secrets**:     %d
+
+		> :crossed_swords: **Completions**:
+		%s
+
+		> :dragon_face: **MasterCompletions**:
+		%s
+
+		> :book: **ClassXP**:
+		%s
+
+		`,
 		userName,
 		d.FetchTime.Format(time.RFC1123),
 		d.Experience,
@@ -121,14 +111,6 @@ func (d *DungeonsData) GetSectionValue() string {
 		masterCompletionsText,
 		classXPText,
 	)
-}
-
-func (d *DungeonsData) GetSectionInline() bool {
-	return d.IsInLine
-}
-
-func (d *DungeonsData) SetInLine(IsInLine bool) {
-	d.IsInLine = IsInLine
 }
 
 func formatCompletions(completions map[int]int) string {
@@ -143,14 +125,12 @@ func formatCompletions(completions map[int]int) string {
 	}
 	sort.Ints(floors)
 
-	numberEmotes := []string{":zero:", ":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"}
-
 	// Build lines
 	result := ""
 	for _, floor := range floors {
 		count := completions[floor]
 		// Each line is further quoted with "> " for a nice Discord blockquote effect
-		result += fmt.Sprintf(">    %s **Floor %d**: `%d`\n", numberEmotes[floor], floor, count)
+		result += fmt.Sprintf(">    • Floor %d: %d\n", floor, count)
 	}
 	return result
 }
@@ -173,13 +153,7 @@ func formatClassXP(classXP map[string]float64) string {
 	result := ""
 	for _, className := range classes {
 		level := classLevels[className]
-		xpVal := classXP[className]
-		result += fmt.Sprintf(
-			">    • **%s**: `%.2f` (`%.0f`xp)\n",
-			className,
-			level,
-			xpVal,
-		)
+		result += fmt.Sprintf(">    • %s: %.2f\n", className, level)
 	}
 	return result
 }

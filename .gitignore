@@ -1,2 +1,7 @@
 *.exe
 .env
+
+
+# Added by cargo
+
+/target

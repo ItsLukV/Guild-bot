@@ -1,28 +1,7 @@
-# Node.js
-node_modules/
+*.exe
+.env
 
-# Logs
-logs
-*.log
-npm-debug.log*
 
-# Dependency directories
-pids
-logs
-*.pid
-*.seed
-*.pid.lock
+# Added by cargo
 
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# Environment variables
-.env*
-
-dist/
+/target

@@ -1,6 +1,8 @@
 *.exe
 .env
 
+.idea/
+.vscode/
 
 # Added by cargo
 

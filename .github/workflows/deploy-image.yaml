@@ -41,10 +41,7 @@ jobs:
           key: ${{ secrets.DO_API_KEY }}
           script: |
             doctl registry login --expiry-seconds 180
-            docker pull registry.digitalocean.com/<REGISTRY_NAME>/bot:latest
-
-            echo "giving healthcheck time to fail..."
-            sleep 30 # ((unhealthy + 1) * interval)
+            docker pull registry.digitalocean.com/guild-docker/bot:latest
 
             docker stop bot || true
             docker rm bot || true

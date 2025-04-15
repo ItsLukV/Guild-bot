@@ -5,10 +5,29 @@ use std::time::Duration;
 
 use api::user_api::{fetch_user_data, get_discord, is_in_guild, username_to_uuid};
 use api::user_api::{fetch_users_data, uuid_to_username};
-use poise::serenity_prelude::CreateEmbedFooter;
+use poise::serenity_prelude::{json, CreateEmbedFooter};
 use poise::{serenity_prelude as serenity, ChoiceParameter};
 use poise::CreateReply;
+use reqwest::StatusCode;
 use separator::Separatable;
+use serde_json::json;
+use once_cell::sync::Lazy;
+use ::serenity::futures::io::Repeat;
+
+static DEBUG: Lazy<String> = Lazy::new(|| {
+    // Can compute this at runtime
+    std::env::var("DEBUG").unwrap_or("0".to_string())
+});
+
+static API_URL: Lazy<String> = Lazy::new(|| {
+    // Can compute this at runtime
+    std::env::var("API_URL").expect("Failed to get API_URL")
+});
+
+static API_TOKEN: Lazy<String> = Lazy::new(|| {
+    // Can compute this at runtime
+    std::env::var("API_TOKEN").expect("Failed to get API_TOKEN")
+});
 
 struct Data {} // User data
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -238,7 +257,7 @@ async fn link(
         _ => println!("User is in the guild")
     }
 
-    if let Some(discord_name) = get_discord(uuid).await {
+    if let Some(discord_name) = get_discord(uuid.clone()).await {
         let e = ctx.author().global_name.as_ref().unwrap_or(&String::new()).to_lowercase();
         if e != discord_name.to_lowercase() {
             let embed = serenity::CreateEmbed::default()
@@ -249,16 +268,55 @@ async fn link(
             ctx.send(CreateReply::default()
             .embed(embed)).await?;
         } else {
+            // Create a client
+            let client = reqwest::Client::new();
+            let url = &format!("{}/users?token={}",API_URL.to_string() ,API_TOKEN.to_string());
+            println!("{}", url.clone());
+            // Send a POST request
+            let response = client
+                .post(url)
+                .json(&json!({
+                    "uuid": uuid,
+                    "discord_snowflake": ctx.author().id
+                }))
+                .send()
+                .await?;
 
-            // TODO: SEND A PUT REQUEST TO THE API
+                match response.status() {
+                    StatusCode::CREATED => {
+                        let embed = serenity::CreateEmbed::default()
+                        .title("Linked")
+                        .description(":)")
+                        .color(serenity::Colour::DARK_GREEN);
 
-            let embed = serenity::CreateEmbed::default()
-            .title("Linked")
-            .description(":)")
-            .color(serenity::Colour::DARK_GREEN);
+                        ctx.send(CreateReply::default()
+                        .embed(embed)).await?;
+                    },
+                    StatusCode::INTERNAL_SERVER_ERROR => {
+                        println!("{}", format!("INTERNAL_SERVER_ERROR for url: {}", url));
 
-            ctx.send(CreateReply::default()
-            .embed(embed)).await?;
+                        let embed = serenity::CreateEmbed::default()
+                        .title("API Error")
+                        .description("Something went wrong")
+                        .color(serenity::Colour::RED);
+
+                        ctx.send(CreateReply::default()
+                        .embed(embed)).await?;
+                    },
+                    _ => {
+                        println!("{}", format!("INTERNAL_SERVER_ERROR for url: {}", url));
+
+                        let embed = serenity::CreateEmbed::default()
+                        .title("API Error")
+                        .description("Something went wrong")
+                        .color(serenity::Colour::RED);
+
+                        ctx.send(CreateReply::default()
+                        .embed(embed)).await?;
+                    }
+                }
+
+
         }
     } else  {
         let embed = serenity::CreateEmbed::default()
@@ -285,12 +343,28 @@ async fn main() {
         })
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
-                // Use guild-specific commands for faster testing
-                poise::builtins::register_in_guild(
-                    ctx,
-                    &framework.options().commands,
-                    serenity::GuildId::new(1355176342915645600) // Replace with your guild ID
-                ).await?;
+                // Check DEBUG environment variable
+                let debug_mode = std::env::var("DEBUG")
+                    .map(|s| s == "true" || s == "1")
+                    .unwrap_or(false);
+
+                if debug_mode {
+                    // Register only in test guild for debugging
+                    let test_guild_id = serenity::GuildId::new(1355176342915645600); // Your test server ID
+                    poise::builtins::register_in_guild(
+                        ctx,
+                        &framework.options().commands,
+                        test_guild_id
+                    ).await?;
+                    println!("Registered commands in test guild only (DEBUG mode)");
+                } else {
+                    // Register globally in production
+                    poise::builtins::register_globally(
+                        ctx,
+                        &framework.options().commands
+                    ).await?;
+                    println!("Registered commands globally");
+                }
 
                 Ok(Data {})
             })

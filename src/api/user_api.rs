@@ -1,7 +1,18 @@
+use once_cell::sync::Lazy;
 use reqwest::{Error, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::vec;
+
+static API_URL: Lazy<String> = Lazy::new(|| {
+    // Can compute this at runtime
+    std::env::var("API_URL").expect("Failed to get API_URL")
+});
+
+static HYPIXEL_API_KEY: Lazy<String> = Lazy::new(|| {
+    // Can compute this at runtime
+    std::env::var("HYPIXEL_API").expect("Failed to get HYPIXEL_API")
+});
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -196,7 +207,8 @@ struct ApiResponse {
 
 // API functions
 pub async fn fetch_users_data() -> Result<Vec<User>, String> {
-    let response = reqwest::get("https://lukv.dev/api/users")
+    let url = format!("{}/users", API_URL.to_string());
+    let response = reqwest::get(url)
         .await
         .map_err(|e| format!("Failed to make request: {}", e))?;
 
@@ -213,7 +225,7 @@ pub async fn fetch_users_data() -> Result<Vec<User>, String> {
 }
 
 pub async fn fetch_user_data(uuid: String) -> Result<RootUser, String> {
-    let url = format!("https://lukv.dev/api/user?id={}", uuid);
+    let url = format!("{}/user?id={}", API_URL.to_string(), uuid);
     println!("Fetching user data from: {}", url);
 
     let response = reqwest::get(&url)
@@ -277,10 +289,9 @@ struct ResponseGuild {
 }
 
 pub async fn is_in_guild(uuid: String) -> Option<bool> {
-    let api_token = std::env::var("HYPIXEL_API_KEY").ok()?;
     let api_url = format!(
         "https://api.hypixel.net/v2/guild?key={}&player={}",
-        api_token, uuid
+        HYPIXEL_API_KEY.to_string(), uuid
     );
 
     let response = reqwest::get(&api_url)
@@ -316,10 +327,9 @@ struct SocialMediaLinks {
 }
 
 pub async fn get_discord(uuid: String) -> Option<String> {
-    let api_token = std::env::var("HYPIXEL_API_KEY").ok()?;
     let api_url = format!(
         "https://api.hypixel.net/v2/player?key={}&uuid={}",
-        api_token, uuid
+        HYPIXEL_API_KEY.to_string(), uuid
     );
 
     let response = reqwest::get(&api_url)

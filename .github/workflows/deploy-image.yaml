@@ -50,4 +50,9 @@ jobs:
             docker run -d \
               --restart always \
               --name bot \
-              registry.digitalocean.com/workflows/bot:latest
+              -e DISCORD_TOKEN="$DISCORD_TOKEN" \
+              -e HYPIXEL_API="$HYPIXEL_API" \
+              -e API_URL="$API_URL" \
+              -e API_TOKEN="$API_TOKEN" \
+              -e DEBUG="$DEBUG" \
+              registry.digitalocean.com/guild-docker/bot:latest

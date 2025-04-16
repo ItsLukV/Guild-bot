@@ -1,5 +1,5 @@
 # Stage 1: Build environment
-FROM rust:1.86-slim as builder
+FROM rust:1.86-slim AS builder
 
 # Install required system dependencies
 RUN apt-get update && apt-get install -y \

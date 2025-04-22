@@ -270,7 +270,7 @@ async fn link(
         } else {
             // Create a client
             let client = reqwest::Client::new();
-            let url = &format!("{}/users?token={}",API_URL.to_string() ,API_TOKEN.to_string());
+            let url = &format!("{}/user?token={}",API_URL.to_string() ,API_TOKEN.to_string());
             println!("{}", url.clone());
             // Send a POST request
             let response = client

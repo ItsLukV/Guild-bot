@@ -258,7 +258,7 @@ async fn link(
     }
 
     if let Some(discord_name) = get_discord(uuid.clone()).await {
-        let e = ctx.author().global_name.as_ref().unwrap_or(&String::new()).to_lowercase();
+        let e = ctx.author().name.as_ref();
         if e != discord_name.to_lowercase() {
             let embed = serenity::CreateEmbed::default()
             .title("API Error")
